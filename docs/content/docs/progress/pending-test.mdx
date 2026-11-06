@@ -7,6 +7,12 @@ description: Implemented changes that still need manual verification
 
 The current release needs manual verification in these areas:
 
+- PocketBase 登录与审核：首次本地启动后在 `http://localhost:8090/_/` 完成 PocketBase 管理员初始化；该管理员用于批准账号，不要开放管理端口到公网。用户集合迁移在保留记录的前提下添加 `username` 和 `accessStatus`，现有账号默认待审核。未登录点击画布、提示词库、我的资产、配置或具体画布项目时应显示中央登录注册弹窗；主页仍可浏览。弹窗右上角的关闭按钮会返回主页。注册页只要求账号名和密码，系统会自动生成仅供认证使用的内部邮箱。新注册用户状态应为待审核，登录后只能看到审核等待提示，不能进入受保护页面。每次进入受保护页面都刷新用户审核状态；管理员在后台将状态改为 `approved` 后可进入，改为 `disabled` 后应退出并阻止访问。`username`、`accessStatus` 不可由普通用户修改，注册接口只能以 pending 创建账号。记住选项只保存账号名和按需保存认证会话，不保存明文密码。迁移现有数据目录时确认持久卷备份策略；正式部署前须配 HTTPS、限制管理后台访问，并另行实现需要服务器强制授权的业务 API。已修复迁移在 Docker 下的自动应用：容器入口显式指定迁移目录，且 `username` 字段补建了唯一索引，重建 `auth` 容器后应能在 `users` 集合编辑页看到 `username` 和 `accessStatus` 字段，现有用户记录的 `accessStatus` 均为 `pending`。
+- 主页与导航：品牌显示在顶部最左侧，账户操作位于右侧；画布左上角品牌可返回主页；独立生图和视频工作台入口及路由不可用，画布生成能力保持可用。主页不显示提示词中心，人物位于左侧，鼠标移动仅带动图片，不出现光圈；打开画布按钮应为透明边框和圆角样式。手机布局和减少动态效果设置下的显示需确认。人物图片仍为带灰色背景的原图，尚未完成透明抠图。
+- 提示词库：提示词中心和画布侧栏共用数据与分类标签，均只展示来源列表中的第一条；分别确认分类、标签、搜索、详情、复制和插入画布。分类按文字匹配，选中不匹配的分类时应显示空状态；远程来源和浏览器缓存中的原始数据未删除。
+- 品牌与工具侧栏：画布左侧栏应显示「蝶讯 AI-D.SD」品牌和「画布 / 资产 / 提示词 / 工具」导航；切到工具页能看到 11 个工具，搜索可用，点击任一工具会在画布中心创建对应生成节点并打开提示词面板，提示词已预填且可以继续修改；图生视频工具应创建视频模式节点。原有画布节点、连线、生成和拖拽行为保持不变。
+- 右上角账户入口：画布和普通页面的右上角应按「中英文、快捷键、积分、会员中心、头像」顺序显示；中英文切换应立即生效，快捷键弹窗正常打开；积分弹窗可充值并新增明细，会员中心可开通套餐并更新有效期，头像菜单可编辑个人资料、打开偏好设置、切换主题和退出登录。未配置 `VITE_ACCOUNT_API_URL` 时使用浏览器本地账户并持久化，配置后应改为请求线上 `/account`、`/account/credits/recharge`、`/account/membership/subscribe`、`/account/profile` 接口。
+- 入口显隐配置：`web/src/constant/brand.ts` 中 `topBarEntries` 的开关应控制顶部入口显示；默认隐藏节点插件、配置、版本更新、GitHub、Agent、文档后，画布顶部不应再出现 Agent 状态和 Agent 按钮，普通页面顶部不应再出现 Agent 按钮，配置仍可从头像菜单进入。
 - Saved model selection: save a canvas node with a model, then remove its provider or remove that model while another video model remains the default. Generation, retry and pending-video recovery should keep the unavailable model selected and open configuration instead of sending a request to the default or first provider. Re-selecting a valid model should allow generation. Changing only the API key on the same provider should preserve the model; switching a config node from a valid image model to video should still use the video default.
 
 - Local storage usage on HTTP deployments: opening the Local storage settings tab at an HTTP origin without `navigator.storage.estimate` should still show IndexedDB content statistics, display an unavailable quota instead of an error, and keep the canvas data unchanged.
