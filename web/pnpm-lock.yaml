@@ -65,6 +65,9 @@ importers:
       nanoid:
         specifier: ^5.1.11
         version: 5.1.16
+      pocketbase:
+        specifier: 0.28.2
+        version: 0.28.2
       radix-ui:
         specifier: ^1.4.3
         version: 1.7.0(@types/react-dom@19.1.9(@types/react@19.1.12))(@types/react@19.1.12)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -3494,6 +3497,9 @@ packages:
   pkg-up@3.1.0:
     resolution: {integrity: sha512-nDywThFk1i4BQK4twPQ6TA4RT8bDY96yeuCVBWL3ePARCiEKDRSrNGbFIgUJpLp+XeIR65v8ra7WuJOFUBtkMA==}
     engines: {node: '>=8'}
+
+  pocketbase@0.28.2:
+    resolution: {integrity: sha512-5lS4g7iDZi90LxLai8kyUK4r5u1GkEAoZ3yuzTEFX97FyDQAoEmXWbTqf+pYA1hz5e/icBQu1MCUjM/9V8mitg==}
 
   postcss-selector-parser@7.1.6:
     resolution: {integrity: sha512-7qASPzhKF2l2KLboRZux8CCTRMdGiV08vWmyKzPz22qZ7ZjQBOeY7rNzNoCLSUiftJ7HUq0GERHmxw/t0dCdMw==}
@@ -8138,6 +8144,8 @@ snapshots:
   pkg-up@3.1.0:
     dependencies:
       find-up: 3.0.0
+
+  pocketbase@0.28.2: {}
 
   postcss-selector-parser@7.1.6:
     dependencies:

@@ -8,6 +8,8 @@
 type RuntimeConfig = {
     ANALYTICS_GA4_ID?: string; // GA4 measurement ID (G-XXXX)
     ANALYTICS_BAIDU_ID?: string; // Baidu Analytics site ID
+    ACCOUNT_API_URL?: string; // 账户接口地址；不配置时使用浏览器本地账户
+    AUTH_API_URL?: string; // PocketBase 认证接口地址
 };
 
 declare global {
@@ -27,3 +29,4 @@ function read(key: keyof RuntimeConfig, buildTime: string | undefined, fallback 
 
 export const ANALYTICS_GA4_ID = read("ANALYTICS_GA4_ID", import.meta.env.VITE_ANALYTICS_GA4_ID);
 export const ANALYTICS_BAIDU_ID = read("ANALYTICS_BAIDU_ID", import.meta.env.VITE_ANALYTICS_BAIDU_ID);
+export const AUTH_API_URL = read("AUTH_API_URL", import.meta.env.VITE_AUTH_API_URL, "/");
