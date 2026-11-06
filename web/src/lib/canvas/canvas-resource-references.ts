@@ -5,7 +5,7 @@ import { getDataUrlByteSize, readImageMeta } from "@/lib/image-utils";
 import { imageToDataUrl } from "@/services/image-storage";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData } from "@/types/canvas";
 
-export type CanvasResourceKind = "image" | "video" | "audio" | "text";
+export type CanvasResourceKind = "image" | "video" | "text";
 
 export type CanvasResourceReference = {
     id: string;
@@ -98,7 +98,7 @@ export function getGroupResourceNodes(groupId: string, nodes: CanvasNodeData[]) 
 }
 
 function labelResourceNodes(nodes: CanvasNodeData[], active: boolean) {
-    const counts: Record<CanvasResourceKind, number> = { image: 0, video: 0, audio: 0, text: 0 };
+    const counts: Record<CanvasResourceKind, number> = { image: 0, video: 0, text: 0 };
     return nodes.flatMap((node): CanvasResourceReference[] => {
         const kind = resourceKind(node);
         if (!kind) return [];
@@ -123,7 +123,6 @@ function labelResourceNodes(nodes: CanvasNodeData[], active: boolean) {
 function labelForKind(kind: CanvasResourceKind, index: number) {
     if (kind === "image") return imageReferenceLabel(index);
     if (kind === "video") return i18n.t("canvas.configNode.videoReferences") + ` ${index + 1}`;
-    if (kind === "audio") return i18n.t("canvas.configNode.audioReferences") + ` ${index + 1}`;
     return i18n.t("canvas.composer.resources.text", { index: index + 1 });
 }
 
@@ -140,7 +139,6 @@ function resourceText(node: CanvasNodeData): string | undefined {
 function resourceKind(node: CanvasNodeData): CanvasResourceKind | null {
     if (node.type === CanvasNodeType.Image && node.metadata?.content) return "image";
     if (node.type === CanvasNodeType.Video && node.metadata?.content) return "video";
-    if (node.type === CanvasNodeType.Audio && node.metadata?.content) return "audio";
     if (node.type === CanvasNodeType.Text && (node.metadata?.content || node.metadata?.prompt)) return "text";
     // Plugin nodes declare their input eligibility through definition.resource.
     return getNodeDefinition(node.type)?.resource?.(node)?.kind || null;

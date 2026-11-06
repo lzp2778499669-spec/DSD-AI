@@ -26,7 +26,6 @@ export type RunPluginArgs = {
     prompt?: string;
     images?: string[];
     videos?: File[];
-    audios?: File[];
     messages?: unknown[];
     params?: Record<string, unknown>;
     signal?: AbortSignal;
@@ -65,7 +64,7 @@ function createPluginHttp(config: AiConfig, options?: RequestOptions): PluginHtt
     };
 }
 
-/** Raw request with no automatic auth header — the script controls method, url, headers, body entirely. */
+/** Raw request with no automatic auth header 鈥?the script controls method, url, headers, body entirely. */
 function createPluginRequest(config: AiConfig, options?: RequestOptions) {
     return async (requestConfig: AxiosRequestConfig & { url: string }) => {
         const response = await axios.request({ ...requestConfig, url: pluginUrl(config, requestConfig.url), signal: options?.signal });
@@ -119,7 +118,6 @@ export async function runModelPlugin<T = unknown>(args: RunPluginArgs): Promise<
         "prompt",
         "images",
         "videos",
-        "audios",
         "messages",
         "params",
         "model",
@@ -140,7 +138,6 @@ export async function runModelPlugin<T = unknown>(args: RunPluginArgs): Promise<
             args.prompt || "",
             args.images || [],
             args.videos || [],
-            args.audios || [],
             args.messages || [],
             args.params || {},
             config.model,
@@ -168,10 +165,9 @@ export type PluginVariable = { name: string; type: string; desc: string; capabil
 /** Documentation surface shown in the script editor. */
 export function getPluginVariables(): PluginVariable[] {
     return [
-        { name: "prompt", type: "string", desc: i18n.t("modelPlugin.variables.prompt"), capabilities: ["image", "video", "audio"] },
+        { name: "prompt", type: "string", desc: i18n.t("modelPlugin.variables.prompt"), capabilities: ["image", "video"] },
         { name: "images", type: "string[]", desc: i18n.t("modelPlugin.variables.images"), capabilities: ["image", "video"] },
         { name: "videos", type: "File[]", desc: i18n.t("modelPlugin.variables.videos"), capabilities: ["video"] },
-        { name: "audios", type: "File[]", desc: i18n.t("modelPlugin.variables.audios"), capabilities: ["video"] },
         { name: "messages", type: "{ role, content }[]", desc: i18n.t("modelPlugin.variables.messages"), capabilities: ["text"] },
         { name: "params", type: "object", desc: i18n.t("modelPlugin.variables.params") },
         { name: "model", type: "string", desc: i18n.t("modelPlugin.variables.model") },
@@ -441,7 +437,6 @@ return await generateImage({
  * @param {string} prompt
  * @param {string[]} images - reference images as data URLs
  * @param {File[]} videos - reference videos; empty when none
- * @param {File[]} audios - reference audio; empty when none
  * @param {object} params
  * @param {string} params.mode - "frames" uses first/last frame fields; "reference" sends all images as references. More than 2 images become "reference".
  * @param {string|number} params.seconds - duration
@@ -460,7 +455,6 @@ async function generateVideo({
   prompt,
   images,
   videos,
-  audios,
   params: {
     mode,
     seconds,
@@ -498,9 +492,6 @@ async function generateVideo({
   }
   for (const file of videos) {
     form.append("video[]", file);
-  }
-  for (const file of audios) {
-    form.append("audio[]", file);
   }
 
   const headers = {
@@ -545,7 +536,6 @@ return await generateVideo({
   prompt,
   images,
   videos,
-  audios,
   params,
   model,
   baseUrl,
@@ -563,7 +553,6 @@ return await generateVideo({
  * @param {string} prompt
  * @param {string[]} images - reference images as data URLs
  * @param {File[]} videos - reference videos; empty when none
- * @param {File[]} audios - reference audio; empty when none
  * @param {object} params
  * @param {string} params.mode - "frames" or "reference"
  * @param {string|number} params.seconds - sent as durationSeconds
@@ -583,7 +572,6 @@ async function generateVideo({
   prompt,
   images,
   videos,
-  audios,
   params: {
     mode,
     seconds,
@@ -656,9 +644,6 @@ async function generateVideo({
   if (videos[0]) {
     instance.video = await toInline(videos[0]);
   }
-  if (audios[0]) {
-    instance.audio = await toInline(audios[0]);
-  }
 
   const headers = {
     "Content-Type": "application/json",
@@ -705,141 +690,12 @@ return await generateVideo({
   prompt,
   images,
   videos,
-  audios,
   params,
   model,
   baseUrl,
   apiKey,
   request,
   poll,
-});`,
-        },
-    ],
-    audio: [
-        {
-            label: i18n.t("modelPlugin.templates.openai"),
-            script: `/**
- * OpenAI speech: POST /v1/audio/speech.
- * @param {string} prompt - text to speak
- * @param {object} params
- * @param {string} params.voice
- * @param {string} params.format - response_format, e.g. "mp3"
- * @param {string|number} params.speed
- * @param {string} [params.instructions] - voice style instructions
- * @param {string} model
- * @param {string} baseUrl
- * @param {string} apiKey
- * @param {function} request
- * @returns {Promise<Blob>}
- */
-async function generateAudio({
-  prompt,
-  params: {
-    voice,
-    format,
-    speed,
-    instructions,
-  },
-  model,
-  baseUrl,
-  apiKey,
-  request,
-}) {
-  return await request({
-    method: "post",
-    url: \`\${baseUrl}/v1/audio/speech\`,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: \`Bearer \${apiKey}\`,
-    },
-    responseType: "blob",
-    data: {
-      model: model,
-      input: prompt,
-      voice: voice,
-      response_format: format,
-      speed: Number(speed),
-      instructions: instructions,
-    },
-  });
-}
-
-return await generateAudio({
-  prompt,
-  params,
-  model,
-  baseUrl,
-  apiKey,
-  request,
-});`,
-        },
-        {
-            label: i18n.t("modelPlugin.templates.gemini"),
-            script: `/**
- * Gemini TTS: POST models/{model}:generateContent with AUDIO modality.
- * Audio bytes are returned in inlineData.data (base64 PCM).
- * @param {string} prompt - text to speak
- * @param {object} params
- * @param {string} params.voice - prebuilt voice name
- * @param {string} model
- * @param {string} baseUrl
- * @param {string} apiKey
- * @param {function} request
- * @returns {Promise<{data: string}>}
- */
-async function generateAudio({
-  prompt,
-  params: {
-    voice,
-  },
-  model,
-  baseUrl,
-  apiKey,
-  request,
-}) {
-  const data = await request({
-    method: "post",
-    url: \`\${baseUrl}/v1beta/models/\${model}:generateContent\`,
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": apiKey,
-    },
-    data: {
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt }],
-        },
-      ],
-      generationConfig: {
-        responseModalities: ["AUDIO"],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: voice,
-            },
-          },
-        },
-      },
-    },
-  });
-  const parts = data.candidates?.[0]?.content?.parts || [];
-  let audio = null;
-  for (const part of parts) {
-    audio = part.inlineData || part.inline_data;
-    if (audio && audio.data) break;
-  }
-  if (!audio || !audio.data) throw new Error("Gemini did not return audio");
-  return { data: audio.data };
-}
-
-return await generateAudio({
-  prompt,
-  params,
-  model,
-  baseUrl,
-  apiKey,
-  request,
 });`,
         },
     ],

@@ -17,11 +17,11 @@ export type Position = { x: number; y: number };
 export type ViewportTransform = { x: number; y: number; k: number };
 
 // 内置节点类型;插件节点建议用 "<pluginId>:<name>"。放开为字符串以便扩展。
-export type CanvasBuiltinNodeType = "image" | "text" | "config" | "video" | "audio" | "group";
+export type CanvasBuiltinNodeType = "image" | "text" | "config" | "video" | "group";
 export type CanvasNodeTypeId = CanvasBuiltinNodeType | (string & {});
 
 export type CanvasNodeStatus = "idle" | "success" | "loading" | "error";
-export type CanvasGenerationMode = "text" | "image" | "video" | "audio";
+export type CanvasGenerationMode = "text" | "image" | "video";
 export type CanvasImageGenerationType = "generation" | "edit";
 
 // 节点 metadata 是扁平可选字段袋;插件自定义字段可直接写入(内容惯例放 content)。
@@ -42,10 +42,6 @@ export type CanvasNodeMetadata = {
     vquality?: string;
     generateAudio?: string;
     watermark?: string;
-    audioVoice?: string;
-    audioFormat?: string;
-    audioSpeed?: string;
-    audioInstructions?: string;
     references?: string[];
     naturalWidth?: number;
     naturalHeight?: number;
@@ -132,11 +128,11 @@ export type CanvasAgentOp =
 // 资源:插件节点作为上游输入被消费时输出什么(接入生成/引用体系)
 // ---------------------------------------------------------------------------
 
-export type CanvasResourceKind = "image" | "video" | "audio" | "text";
+export type CanvasResourceKind = "image" | "video" | "text";
 export type CanvasNodeResource = { kind: CanvasResourceKind; text?: string; url?: string };
 
 // ---------------------------------------------------------------------------
-// AI 生成:插件直接复用宿主的模型/密钥配置发起生成(生图/生视频/生文本/生音频)
+// AI 生成:插件直接复用宿主的模型/密钥配置发起生成(生图/生视频/生文本)
 //
 // 插件本身拿不到 API Key 与模型配置,这些能力由宿主注入。前置/系统提示词由
 // 插件自行拼进 prompt(宿主不感知),因此不同插件可各自定制自己的提示词策略。
@@ -185,7 +181,7 @@ export type GenerateTextResult = {
 };
 
 // 一个可选模型:value 传回给 generateXxx({ model }),label 用于展示
-export type ModelCapability = "image" | "video" | "text" | "audio";
+export type ModelCapability = "image" | "video" | "text";
 export type ModelOption = { value: string; label: string };
 
 // 宿主注入的 AI 生成能力,挂在 ctx.ai 下。任何插件均可调用。
@@ -257,8 +253,8 @@ export type CanvasNodePanelProps = { ctx: CanvasNodeContext; onClose: () => void
 // 复用宿主内置生成面板(与图片/视频/文本节点同一个组件:模型选择、参数设置、
 // 提示词库、运行/停止状态全部一致)。声明它即可获得完整生成体验,无需自写面板。
 export type CanvasBuiltinPanelConfig = {
-    mode: "image" | "video" | "text" | "audio"; // 生成类型,决定面板里的模型/设置项
-    // 提交给模型前自动拼在用户提示词前面的固定前缀(如全景图的 equirectangular 约束)
+    mode: "image" | "video" | "text"; // 生成类型,决定面板里的模型/设置项
+    // 提交给模型前自动拼在用户提示词前面的固定前缀
     promptPrefix?: string;
     // true(默认)时生成结果写回本节点自身 metadata.content;false 则按内置逻辑生成到下游新节点
     writeBackToSelf?: boolean;
@@ -282,7 +278,7 @@ export type CanvasNodeDefinition = {
     useBuiltinPanel?: CanvasBuiltinPanelConfig;
     // 为 true 时:宿主自动在工具条加「交互 ⇄ 移动」开关,并按 metadata.interactive 控制内容层指针事件。
     // 默认(interactive 未设/为 false)为「移动」态:内容不吃指针,拖动整块移动节点;
-    // 切到「交互」态后内容可点击/拖拽(如全景转视角、iframe 操作)。适合内部有交互的展示型节点。
+    // 切到「交互」态后内容可点击/拖拽(如 iframe 操作)。适合内部有交互的展示型节点。
     interactionToggle?: boolean;
     // 配合 interactionToggle:返回 true 表示当前节点内容「强制可交互」(如编辑态),
     // 此时忽略 interactive 标志、始终允许操作,并隐藏移动/交互开关。缺省视为 false。
