@@ -1,4 +1,21 @@
 services:
+  auth:
+    build:
+      context: .
+      dockerfile: pocketbase.Dockerfile
+      args:
+        PB_VERSION: 0.40.6
+    ports:
+      - "127.0.0.1:8090:8090"
+    volumes:
+      - pocketbase_data:/pb_data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8090/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   app:
     image: infinite-canvas:local
     build:
@@ -6,4 +23,12 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
+    environment:
+      AUTH_API_URL: /
+    depends_on:
+      auth:
+        condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  pocketbase_data:

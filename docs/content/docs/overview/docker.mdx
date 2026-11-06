@@ -21,6 +21,8 @@ Open `http://localhost:3000`.
 docker compose -f docker-compose.local.yml up -d --build
 ```
 
+The application uses PocketBase for account registration and administrator approval. On first start, open `http://localhost:8090/_/` and create the PocketBase superuser. New registrations remain `pending` until an administrator changes `accessStatus` to `approved` in the `users` collection. The database persists in the `pocketbase_data` Docker volume; back it up before changing or removing volumes. The PocketBase host port is bound to loopback for local administration. Production deployments still need HTTPS and an access policy for the admin dashboard.
+
 ## Documentation image
 
 The documentation in `docs/` is a separate Next.js standalone application with server capabilities.
@@ -37,7 +39,7 @@ cd docs
 docker compose -f docker-compose.local.yml up -d --build
 ```
 
-The main application container only runs Next.js. Canvases, My Assets, generation history, and API keys are stored in the browser by default, while prompt repositories are fetched directly by the frontend. No persistent data volume is required for this data.
+The app container serves the static Vite frontend. PocketBase stores user accounts in the persistent `pocketbase_data` volume; canvas projects, My Assets, generation history, and AI API keys remain in each user's browser by default. Prompt repositories are fetched directly by the frontend.
 
 ## Optional analytics
 
