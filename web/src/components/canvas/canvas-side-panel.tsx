@@ -1,20 +1,22 @@
 import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
 import { App, Empty, Input, Popconfirm, Select, Spin, Tag } from "antd";
-import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Check, ChevronRight, Download, Eye, FileText, Image as ImageIcon, LayoutGrid, ListChecks, Music2, Plus, Rows3, Search, Settings2, Square, Trash2, Type, Video } from "lucide-react";
+import { Check, ChevronRight, Download, Eye, FileText, Image as ImageIcon, LayoutGrid, ListChecks, Music2, Plus, Rows3, Search, Settings2, Square, Trash2, Type, Video } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 
 import { canvasThemes, type CanvasTheme } from "@/lib/canvas-theme";
 import { exportCanvasNodes } from "@/lib/canvas/canvas-export";
 import { getNodeDefinition } from "@/lib/canvas/node-registry";
 import { cn } from "@/lib/utils";
+import { brand } from "@/constant/brand";
+import { AI_TOOLS, AI_TOOL_GROUPS, type AiTool } from "@/constant/ai-tools";
 import { PromptDetailDialog } from "@/pages/prompts/components/prompt-detail-dialog";
-import { fetchSourcePrompts, type Prompt } from "@/services/api/prompts";
+import { ALL_PROMPTS_OPTION, type Prompt } from "@/services/api/prompts";
+import { usePromptList } from "@/components/prompts/use-prompt-list";
 import { uploadMediaFile } from "@/services/file-storage";
 import { previewUrlFor, subscribeImagePreviews, getImagePreviewRevision, uploadImage } from "@/services/image-storage";
 import { useAssetStore, type Asset, type AssetKind } from "@/stores/use-asset-store";
-import { usePromptSourceStore } from "@/stores/use-prompt-source-store";
 import { CANVAS_SIDE_PANEL_MAX_WIDTH, CANVAS_SIDE_PANEL_MIN_WIDTH, CANVAS_SIDE_PANEL_MOTION_MS, useCanvasSidePanelStore } from "@/stores/use-canvas-side-panel-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
@@ -24,7 +26,14 @@ import type { InsertAssetPayload } from "./asset-picker-modal";
 const PANEL_MOTION_SECONDS = CANVAS_SIDE_PANEL_MOTION_MS / 1000;
 const PANEL_EASE = [0.22, 1, 0.36, 1] as const;
 
-type PanelTab = "canvas" | "assets" | "prompts";
+type PanelTab = "canvas" | "assets" | "prompts" | "tools";
+
+const PANEL_TABS: { id: PanelTab; labelKey: string }[] = [
+    { id: "canvas", labelKey: "canvas.sidePanel.canvas" },
+    { id: "assets", labelKey: "canvas.sidePanel.assets" },
+    { id: "prompts", labelKey: "canvas.sidePanel.promptsShort" },
+    { id: "tools", labelKey: "tools.nav" },
+];
 
 type Props = {
     nodes: CanvasNodeData[];
@@ -33,6 +42,7 @@ type Props = {
     onPreviewNode: (nodeId: string) => void;
     onHoverNode: (nodeId: string | null) => void;
     onInsertAsset: (payload: InsertAssetPayload) => void;
+    onUseTool: (tool: AiTool) => void;
 };
 
 const NODE_TYPE_ICON: Record<string, typeof Square> = {
@@ -51,9 +61,10 @@ const STATUS_COLOR: Record<string, string> = {
     idle: "transparent",
 };
 
-export function CanvasSidePanel({ nodes, selectedNodeIds, onFocusNode, onPreviewNode, onHoverNode, onInsertAsset }: Props) {
+export function CanvasSidePanel({ nodes, selectedNodeIds, onFocusNode, onPreviewNode, onHoverNode, onInsertAsset, onUseTool }: Props) {
     const { t } = useTranslation();
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
+    const colorTheme = useThemeStore((state) => state.theme);
+    const theme = canvasThemes[colorTheme];
     const [tab, setTab] = useState<PanelTab>("canvas");
     const width = useCanvasSidePanelStore((state) => state.width);
     const panelOpen = useCanvasSidePanelStore((state) => state.panelOpen);
@@ -100,18 +111,43 @@ export function CanvasSidePanel({ nodes, selectedNodeIds, onFocusNode, onPreview
                 style={{ width, background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.node.text }}
                 data-canvas-no-zoom
             >
-                <div className="flex items-center gap-5 px-4 pt-3.5">
-                    <TabButton label={t("canvas.sidePanel.canvas")} active={tab === "canvas"} theme={theme} onClick={() => setTab("canvas")} />
-                    <TabButton label={t("canvas.sidePanel.assets")} active={tab === "assets"} theme={theme} onClick={() => setTab("assets")} />
-                    <TabButton label={t("canvas.sidePanel.prompts")} active={tab === "prompts"} theme={theme} onClick={() => setTab("prompts")} />
+                <Link to="/" className="flex items-center gap-2.5 px-4 pb-3 pt-4 transition hover:opacity-75" title={t("canvas.home")}>
+                    <img src={brand.logo} alt={brand.product} className="h-5 w-auto shrink-0" style={{ filter: colorTheme === "light" ? "invert(1)" : undefined }} />
+                    <div className="leading-none">
+                        <div className="text-[17px] font-bold tracking-wide">{brand.name}</div>
+                        <div className="mt-1 text-[11px] font-semibold tracking-[0.16em]" style={{ color: brand.accent }}>
+                            {brand.product}
+                        </div>
+                    </div>
+                </Link>
+                <div className="flex items-center gap-1 px-2.5 pb-3">
+                    {PANEL_TABS.map((item) => {
+                        const active = tab === item.id;
+                        return (
+                            <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => setTab(item.id)}
+                                className="flex-1 rounded-lg py-2 text-sm font-medium transition"
+                                style={{
+                                    color: active ? theme.node.text : theme.node.muted,
+                                    background: active ? theme.toolbar.activeBg : "transparent",
+                                }}
+                            >
+                                {t(item.labelKey)}
+                            </button>
+                        );
+                    })}
                 </div>
-                <div className="mt-2 min-h-0 flex-1 overflow-hidden">
+                <div className="mt-1 min-h-0 flex-1 overflow-hidden">
                     {tab === "canvas" ? (
                         <CanvasNodesTab nodes={nodes} selectedNodeIds={selectedNodeIds} onFocusNode={onFocusNode} onPreviewNode={onPreviewNode} onHoverNode={onHoverNode} theme={theme} />
                     ) : tab === "assets" ? (
                         <CanvasAssetsTab onInsert={onInsertAsset} theme={theme} />
-                    ) : (
+                    ) : tab === "prompts" ? (
                         <CanvasPromptsTab onInsert={onInsertAsset} theme={theme} />
+                    ) : (
+                        <CanvasToolsTab theme={theme} onUseTool={onUseTool} />
                     )}
                 </div>
                 <button type="button" className="absolute inset-y-0 right-0 z-40 w-4 translate-x-1/2 cursor-col-resize" onPointerDown={startResize} aria-label={t("canvas.sidePanel.resize")} />
@@ -120,12 +156,56 @@ export function CanvasSidePanel({ nodes, selectedNodeIds, onFocusNode, onPreview
     );
 }
 
-function TabButton({ label, active, theme, onClick }: { label: string; active: boolean; theme: CanvasTheme; onClick: () => void }) {
+function CanvasToolsTab({ theme, onUseTool }: { theme: CanvasTheme; onUseTool: (tool: AiTool) => void }) {
+    const { t } = useTranslation();
+    const [keyword, setKeyword] = useState("");
+
+    const filtered = useMemo(() => {
+        const query = keyword.trim().toLowerCase();
+        if (!query) return AI_TOOLS;
+        return AI_TOOLS.filter((tool) => `${t(tool.titleKey)} ${t(tool.descKey)} ${tool.id}`.toLowerCase().includes(query));
+    }, [keyword, t]);
+
     return (
-        <button type="button" onClick={onClick} className="relative pb-1.5 text-sm font-semibold transition-opacity" style={{ color: theme.node.text, opacity: active ? 1 : 0.45 }}>
-            {label}
-            {active ? <motion.span layoutId="sidePanelTabIndicator" className="absolute inset-x-0 -bottom-px h-0.5 rounded-full" style={{ background: theme.toolbar.activeText }} transition={{ type: "spring", stiffness: 500, damping: 34 }} /> : null}
-        </button>
+        <div className="flex h-full flex-col">
+            <div className="px-3 pb-2.5 pt-1">
+                <Input size="small" allowClear prefix={<Search className="size-3.5 text-stone-400" />} placeholder={t("tools.search")} value={keyword} onChange={(event) => setKeyword(event.target.value)} />
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+                {AI_TOOL_GROUPS.map((group) => {
+                    const tools = filtered.filter((tool) => tool.group === group.id);
+                    if (!tools.length) return null;
+                    return (
+                        <div key={group.id}>
+                            <div className="px-2 pb-1.5 pt-3 text-[11px] font-semibold uppercase tracking-[0.14em] opacity-40">{t(group.titleKey)}</div>
+                            <div className="space-y-0.5">
+                                {tools.map((tool) => {
+                                    const Icon = tool.icon;
+                                    return (
+                                        <button
+                                            key={tool.id}
+                                            type="button"
+                                            onClick={() => onUseTool(tool)}
+                                            className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-black/5 dark:hover:bg-white/5"
+                                        >
+                                            <span className="grid size-9 shrink-0 place-items-center rounded-lg border" style={{ borderColor: theme.node.stroke, color: theme.node.text }}>
+                                                <Icon className="size-4" />
+                                            </span>
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block truncate text-sm font-medium leading-snug">{t(tool.titleKey)}</span>
+                                                <span className="mt-0.5 block truncate text-xs leading-snug opacity-50">{t(tool.descKey)}</span>
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })}
+                {filtered.length ? null : <div className="pt-12 text-center text-sm opacity-40">{t("tools.empty")}</div>}
+                <div className="px-2 pb-2 pt-4 text-[11px] leading-relaxed opacity-40">{t("tools.insertHint")}</div>
+            </div>
+        </div>
     );
 }
 
@@ -543,16 +623,16 @@ function AssetCover({ asset }: { asset: Asset }) {
 }
 
 // ---------------------------------------------------------------------------
-// Prompt library tab: collapsible source groups, lazy loading, and copy or text-node insertion actions.
+// Prompt library tab shares the same selection and filters as the prompt center.
 // ---------------------------------------------------------------------------
 
 const CanvasPromptsTab = memo(function CanvasPromptsTab({ onInsert, theme }: { onInsert: (payload: InsertAssetPayload) => void; theme: CanvasTheme }) {
     const { message } = App.useApp();
     const { t } = useTranslation();
-    const sources = usePromptSourceStore((state) => state.sources);
-    const enabledSources = useMemo(() => sources.filter((source) => source.enabled), [sources]);
     const [keyword, setKeyword] = useState("");
-    const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+    const [category, setCategory] = useState(ALL_PROMPTS_OPTION);
+    const [tags, setTags] = useState<string[]>([]);
+    const { query, items, categories, tags: availableTags } = usePromptList({ keyword, category, tags });
     const [detail, setDetail] = useState<Prompt | null>(null);
 
     const copyPrompt = async (prompt: string) => {
@@ -568,94 +648,16 @@ const CanvasPromptsTab = memo(function CanvasPromptsTab({ onInsert, theme }: { o
         <div className="flex h-full flex-col">
             <div className="px-3 pb-2.5 pt-1">
                 <Input size="small" allowClear prefix={<Search className="size-3.5 text-stone-400" />} placeholder={t("canvas.sidePanel.searchPrompts")} value={keyword} onChange={(e) => setKeyword(e.target.value)} />
+                <div className="mt-3 flex flex-wrap gap-1">{categories.map((option) => <Tag.CheckableTag key={option} checked={category === option} onChange={() => setCategory(option)}>{option === ALL_PROMPTS_OPTION ? t("common.all") : option}</Tag.CheckableTag>)}</div>
+                <div className="mt-2 flex flex-wrap gap-1">{availableTags.map((tag) => <Tag.CheckableTag key={tag} checked={tag === ALL_PROMPTS_OPTION ? !tags.length : tags.includes(tag)} onChange={() => setTags((previous) => tag === ALL_PROMPTS_OPTION ? [] : previous.includes(tag) ? previous.filter((item) => item !== tag) : [...previous, tag])}>{tag === ALL_PROMPTS_OPTION ? t("common.all") : tag}</Tag.CheckableTag>)}</div>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
-                <div className="space-y-1">
-                    {enabledSources.length ? enabledSources.map((source) => (
-                        <PromptSourceGroup
-                            key={source.id}
-                            sourceId={source.id}
-                            sourceName={source.name}
-                            keyword={keyword}
-                            open={!!expanded[source.id]}
-                            theme={theme}
-                            onToggle={() => setExpanded((prev) => ({ ...prev, [source.id]: !prev[source.id] }))}
-                            onInsert={onInsert}
-                            onView={setDetail}
-                        />
-                    )) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t("canvas.sidePanel.noPrompts")} className="pt-12" />}
-                </div>
+                {query.isLoading ? <div className="flex justify-center py-6"><Spin size="small" /></div> : items.length ? items.map((item) => <PromptRow key={`${item.sourceId}:${item.id}`} item={item} theme={theme} onInsert={() => onInsert({ kind: "text", content: item.prompt, title: item.title })} onView={() => setDetail(item)} />) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t("canvas.sidePanel.noPrompts")} className="pt-12" />}
             </div>
             <PromptDetailDialog prompt={detail} onClose={() => setDetail(null)} onCopy={(prompt) => void copyPrompt(prompt)} />
         </div>
     );
 });
-
-function PromptSourceGroup({
-    sourceId,
-    sourceName,
-    keyword,
-    open,
-    theme,
-    onToggle,
-    onInsert,
-    onView,
-}: {
-    sourceId: string;
-    sourceName: string;
-    keyword: string;
-    open: boolean;
-    theme: CanvasTheme;
-    onToggle: () => void;
-    onInsert: (payload: InsertAssetPayload) => void;
-    onView: (prompt: Prompt) => void;
-}) {
-    const { t } = useTranslation();
-    // Cache a source after its first expansion to avoid repeated requests; search results also need the data for counts.
-    const showResults = open || !!keyword.trim();
-    const query = useQuery({ queryKey: ["side-panel-prompts", sourceId], queryFn: () => fetchSourcePrompts(sourceId), enabled: showResults, staleTime: 1000 * 60 * 60 });
-
-    const filtered = useMemo(() => {
-        const items = query.data || [];
-        const q = keyword.trim().toLowerCase();
-        if (!q) return items;
-        return items.filter((item) => [item.title, item.prompt, ...item.tags].join(" ").toLowerCase().includes(q));
-    }, [query.data, keyword]);
-
-    const insertPrompt = (item: Prompt) => onInsert({ kind: "text", content: item.prompt, title: item.title });
-
-    return (
-        <div>
-            <button type="button" onClick={onToggle} className="flex w-full items-center gap-1.5 rounded-md px-1.5 py-1.5 text-left text-xs font-semibold opacity-75 transition hover:opacity-100">
-                <ChevronRight className={cn("size-3.5 transition-transform", showResults && "rotate-90")} />
-                <BookOpen className="size-3.5" />
-                <span className="min-w-0 flex-1 truncate">{sourceName}</span>
-                {showResults && query.isSuccess ? <span className="opacity-50">{filtered.length}</span> : null}
-            </button>
-            {showResults ? (
-                <div className="px-1 pb-2 pt-1">
-                    {query.isLoading ? (
-                        <div className="flex justify-center py-6">
-                            <Spin size="small" />
-                        </div>
-                    ) : query.isError ? (
-                        <button type="button" onClick={() => void query.refetch()} className="block w-full py-4 text-center text-xs text-red-500 opacity-80 transition hover:opacity-100">
-                            {t("canvas.sidePanel.loadFailedRetry")}
-                        </button>
-                    ) : filtered.length ? (
-                        <div className="space-y-1.5">
-                            {filtered.map((item) => (
-                                <PromptRow key={item.id} item={item} theme={theme} onInsert={() => insertPrompt(item)} onView={() => onView(item)} />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="py-4 text-center text-xs opacity-40">{keyword.trim() ? t("canvas.sidePanel.noMatchingPrompts") : t("canvas.sidePanel.sourceEmpty")}</div>
-                    )}
-                </div>
-            ) : null}
-        </div>
-    );
-}
 
 function PromptRow({ item, theme, onInsert, onView }: { item: Prompt; theme: CanvasTheme; onInsert: () => void; onView: () => void }) {
     const { t } = useTranslation();

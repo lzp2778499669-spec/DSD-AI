@@ -4,6 +4,7 @@ import { Button, Dropdown, Modal, Tooltip } from "antd";
 import { useTranslation } from "react-i18next";
 
 import { UserStatusActions } from "@/components/layout/user-status-actions";
+import { brand, topBarEntries } from "@/constant/brand";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useCanvasSidePanelStore } from "@/stores/use-canvas-side-panel-store";
 import { useThemeStore } from "@/stores/use-theme-store";
@@ -73,7 +74,7 @@ export function CanvasTopBar({
 
     return (
         <>
-            <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex h-16 items-center justify-between pl-1 pr-4">
+            <div className="pointer-events-none absolute left-0 right-0 top-0 z-50 flex h-16 items-center justify-between gap-4 pl-1 pr-4">
                 <div className="pointer-events-auto flex min-w-0 items-center gap-2">
                     <Tooltip title={sidePanelOpen ? t("canvas.collapsePanel") : t("canvas.expandPanel")}>
                         <button
@@ -86,12 +87,15 @@ export function CanvasTopBar({
                             {sidePanelOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
                         </button>
                     </Tooltip>
+                    {!sidePanelOpen ? <button type="button" onClick={onHome} className="grid size-8 shrink-0 place-items-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10" aria-label={t("canvas.home")} title={t("canvas.home")}>
+                        <img src={brand.logo} alt={brand.product} className="h-5 w-auto" style={{ filter: colorTheme === "light" ? "invert(1)" : undefined }} />
+                    </button> : null}
                     <Dropdown
                         trigger={["click"]}
                         menu={{
                             items: [
                                 { key: "home", icon: <Home className="size-4" />, label: t("canvas.home"), onClick: onHome },
-                                { key: "docs", icon: <BookOpen className="size-4" />, label: t("canvas.docs"), onClick: () => window.open(DOCS_URL, "_blank", "noopener,noreferrer") },
+                                ...(topBarEntries.docs ? [{ key: "docs", icon: <BookOpen className="size-4" />, label: t("canvas.docs"), onClick: () => window.open(DOCS_URL, "_blank", "noopener,noreferrer") }] : []),
                                 { key: "projects", icon: <Images className="size-4" />, label: t("canvas.projects"), onClick: onProjects },
                                 { type: "divider" },
                                 { key: "new", icon: <Plus className="size-4" />, label: t("canvas.create"), onClick: onCreateProject },
@@ -135,21 +139,34 @@ export function CanvasTopBar({
                             </button>
                         )}
                     </div>
-                    <CompactAgentStatus status={compactAgentStatus} onClick={onToggleAgent} />
+                    {topBarEntries.agent ? <CompactAgentStatus status={compactAgentStatus} onClick={onToggleAgent} /> : null}
+                </div>
+
+                <div className="pointer-events-none absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 text-center xl:block">
+                    <div className="text-sm font-semibold tracking-[0.32em]" style={{ color: theme.node.text }}>
+                        {brand.title}
+                    </div>
+                    <div className="mt-1 text-[9px] tracking-[0.26em]" style={{ color: theme.node.muted, opacity: 0.5 }}>
+                        {brand.subtitle}
+                    </div>
                 </div>
 
                 <div className="pointer-events-auto flex items-center gap-1.5">
                     <UserStatusActions variant="canvas" onOpenShortcuts={() => setShortcutsOpen(true)} onOpenPlugins={onOpenPlugins} />
-                    <span className="h-6 w-px" style={{ background: theme.toolbar.border }} />
-                    <Button
-                        type="text"
-                        className="!h-10 !rounded-xl !px-3 !font-medium"
-                        style={{ background: agentOpen ? theme.toolbar.activeBg : theme.toolbar.panel, color: theme.node.text, boxShadow: "0 10px 30px rgba(28,25,23,.10)" }}
-                        icon={<Bot className="size-4" />}
-                        onClick={onToggleAgent}
-                    >
-                        Agent
-                    </Button>
+                    {topBarEntries.agent ? (
+                        <>
+                            <span className="h-6 w-px" style={{ background: theme.toolbar.border }} />
+                            <Button
+                                type="text"
+                                className="!h-10 !rounded-xl !px-3 !font-medium"
+                                style={{ background: agentOpen ? theme.toolbar.activeBg : theme.toolbar.panel, color: theme.node.text, boxShadow: "0 10px 30px rgba(28,25,23,.10)" }}
+                                icon={<Bot className="size-4" />}
+                                onClick={onToggleAgent}
+                            >
+                                Agent
+                            </Button>
+                        </>
+                    ) : null}
                 </div>
             </div>
             <Modal title={t("canvas.shortcuts")} open={shortcutsOpen} onCancel={() => setShortcutsOpen(false)} footer={null} centered>

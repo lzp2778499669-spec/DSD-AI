@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 
-import { ALL_PROMPTS_OPTION, fetchPrompts } from "@/services/api/prompts";
+import { ALL_PROMPTS_OPTION, fetchPrompts, PROMPT_CATEGORIES, PROMPT_TAGS } from "@/services/api/prompts";
 
 export const PROMPT_PAGE_SIZE = 20;
 
@@ -22,8 +22,8 @@ export function usePromptList({ keyword, tags, category, enabled = true }: { key
     return {
         query,
         items: useMemo(() => query.data?.pages.flatMap((page) => page.items) || [], [query.data?.pages]),
-        tags: useMemo(() => [ALL_PROMPTS_OPTION, ...(firstPage?.tags || [])], [firstPage?.tags]),
-        categories: useMemo(() => [ALL_PROMPTS_OPTION, ...(firstPage?.categories || [])], [firstPage?.categories]),
+        tags: useMemo(() => [ALL_PROMPTS_OPTION, ...PROMPT_TAGS], []),
+        categories: useMemo(() => [ALL_PROMPTS_OPTION, ...PROMPT_CATEGORIES], []),
         total: firstPage?.total || 0,
     };
 }

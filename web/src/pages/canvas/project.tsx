@@ -93,6 +93,7 @@ import {
 } from "@/types/canvas";
 import type { ReferenceImage } from "@/types/image";
 import type { ReferenceAudio, ReferenceVideo } from "@/types/media";
+import type { AiTool } from "@/constant/ai-tools";
 
 // Register built-in nodes in the shared registry once when the module loads.
 registerBuiltinNodes();
@@ -859,6 +860,27 @@ function InfiniteCanvasPage() {
             if (wantsPanel) setDialogNodeId(newNode.id);
         },
         [effectiveConfig.canvasImageCount, effectiveConfig.count, effectiveConfig.imageModel, effectiveConfig.model, effectiveConfig.size, getCanvasCenter],
+    );
+
+    // 点击左侧工具时，在画布上创建带预填提示词的生成节点，用户可以直接改词或连线后生成。
+    const handleUseTool = useCallback(
+        (tool: AiTool) => {
+            const node = {
+                ...createCanvasNode(CanvasNodeType.Config, getCanvasCenter(), {
+                    prompt: tool.prompt,
+                    generationMode: tool.mode,
+                    model: tool.mode === "video" ? effectiveConfig.videoModel || effectiveConfig.model : effectiveConfig.imageModel || effectiveConfig.model,
+                    size: effectiveConfig.size,
+                    count: getGenerationCount(effectiveConfig.canvasImageCount || effectiveConfig.count),
+                }),
+                title: t(tool.titleKey),
+            };
+            setNodes((prev) => [...prev, node]);
+            setSelectedNodeIds(new Set([node.id]));
+            setSelectedConnectionId(null);
+            setDialogNodeId(node.id);
+        },
+        [effectiveConfig.canvasImageCount, effectiveConfig.count, effectiveConfig.imageModel, effectiveConfig.model, effectiveConfig.size, effectiveConfig.videoModel, getCanvasCenter, t],
     );
 
     const deleteNodes = useCallback(
@@ -3155,7 +3177,7 @@ function InfiniteCanvasPage() {
 
     return (
         <main className="flex h-full min-h-0 overflow-hidden" style={{ background: theme.canvas.background, color: theme.node.text }}>
-            <CanvasSidePanel nodes={nodes} selectedNodeIds={selectedNodeIds} onFocusNode={focusNode} onPreviewNode={setPreviewNodeId} onHoverNode={setHoverPreviewNodeId} onInsertAsset={handleAssetInsert} />
+            <CanvasSidePanel nodes={nodes} selectedNodeIds={selectedNodeIds} onFocusNode={focusNode} onPreviewNode={setPreviewNodeId} onHoverNode={setHoverPreviewNodeId} onInsertAsset={handleAssetInsert} onUseTool={handleUseTool} />
             <section className="relative min-w-0 flex-1 overflow-hidden">
                 <CanvasTopBar
                     title={currentProject?.title || t("canvas.projectPage.untitledCanvas")}

@@ -7,9 +7,11 @@ import { navigationTools, type NavigationToolSlug } from "@/constant/navigation-
 import { AppConfigModal } from "@/components/layout/app-config-modal";
 import { MobileNavDrawer } from "@/components/layout/mobile-nav-drawer";
 import { UserStatusActions } from "@/components/layout/user-status-actions";
+import { brand, topBarEntries } from "@/constant/brand";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
 import { useAgentStore } from "@/stores/use-agent-store";
+import { useThemeStore } from "@/stores/use-theme-store";
 
 export function AppTopNav() {
     const { t } = useTranslation();
@@ -25,8 +27,10 @@ export function AppTopNav() {
     const hideHeader = /^\/canvas\/[^/]+/.test(pathname);
     const slug = pathname.split("/").filter(Boolean)[0];
     const activeToolSlug = navigationTools.some((tool) => tool.slug === slug) ? (slug as NavigationToolSlug) : undefined;
+    const theme = useThemeStore((state) => state.theme);
 
     useEffect(() => {
+        if (!topBarEntries.agent) return;
         if (autoConnectRef.current || agentEnabled || agentConnected || !agentToken.trim()) return;
         autoConnectRef.current = true;
         connectAgent({ silent: true });
@@ -36,17 +40,14 @@ export function AppTopNav() {
         <>
             {!hideHeader ? (
                 <header className="sticky top-0 z-20 h-14 shrink-0 border-b border-stone-200 bg-background/90 backdrop-blur-xl dark:border-stone-800">
-                    <div className="mx-auto flex h-full max-w-7xl items-stretch justify-between gap-5 px-6">
+                    <div className="flex h-full w-full items-stretch justify-between gap-5 px-4 sm:px-6">
                         <div className="flex min-w-0 items-center">
-                            <Link to="/" className="flex h-full shrink-0 items-center gap-2 text-sm font-semibold leading-none tracking-tight text-stone-950 transition hover:text-stone-600 dark:text-stone-100 dark:hover:text-stone-300">
-                                <span
-                                    className="size-5 shrink-0 bg-current"
-                                    style={{
-                                        mask: "url(/logo.svg) center / contain no-repeat",
-                                        WebkitMask: "url(/logo.svg) center / contain no-repeat",
-                                    }}
-                                />
-                                <span className="text-base font-medium">{t("meta.title")}</span>
+                            <Link to="/" className="flex h-full shrink-0 items-center gap-2.5 text-sm font-semibold leading-none tracking-tight text-stone-950 transition hover:opacity-80 dark:text-stone-100">
+                                <img src={brand.logo} alt={brand.product} className="h-5 w-auto shrink-0" style={{ filter: theme === "light" ? "invert(1)" : undefined }} />
+                                <span className="text-lg font-semibold">{brand.name}</span>
+                                <span className="text-xs font-bold tracking-[0.14em]" style={{ color: brand.accent }}>
+                                    {brand.product}
+                                </span>
                             </Link>
 
                             <button
@@ -68,7 +69,7 @@ export function AppTopNav() {
                                             key={tool.slug}
                                             to={`/${tool.slug}`}
                                             className={cn(
-                                                "relative flex h-14 shrink-0 items-center gap-2 text-sm leading-6 transition after:absolute after:inset-x-0 after:bottom-0 after:h-px",
+                                                "relative flex h-14 shrink-0 items-center gap-2 text-[15px] leading-6 transition after:absolute after:inset-x-0 after:bottom-0 after:h-px",
                                                 active
                                                     ? "font-medium text-stone-950 after:bg-stone-950 dark:text-stone-100 dark:after:bg-stone-100"
                                                     : "text-stone-500 after:bg-transparent hover:text-stone-950 dark:text-stone-400 dark:hover:text-stone-100",
@@ -83,9 +84,11 @@ export function AppTopNav() {
                         </div>
 
                         <div className="my-auto flex h-9 min-w-0 items-center justify-end gap-2 justify-self-end whitespace-nowrap">
-                            <Tooltip title={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")}>
-                                <Button type="text" shape="circle" className="!h-8 !w-8 !min-w-8" icon={<Bot className="size-4" />} onClick={togglePanel} aria-label={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")} />
-                            </Tooltip>
+                            {topBarEntries.agent ? (
+                                <Tooltip title={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")}>
+                                    <Button type="text" shape="circle" className="!h-8 !w-8 !min-w-8" icon={<Bot className="size-4" />} onClick={togglePanel} aria-label={t(panelOpen ? "topNav.closeAgent" : "topNav.openAgent")} />
+                                </Tooltip>
+                            ) : null}
                             <UserStatusActions />
                         </div>
                     </div>

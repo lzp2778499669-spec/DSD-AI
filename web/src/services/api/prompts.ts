@@ -13,6 +13,10 @@ export type Prompt = RawPrompt & {
 
 export const ALL_PROMPTS_OPTION = "all";
 
+export const PROMPT_CATEGORIES = ["模特", "人物", "服装"] as const;
+export const PROMPT_TAGS = ["生活", "工作", "插画", "穿搭", "海报"] as const;
+export const PROMPT_LIBRARY_LIMIT = 1;
+
 export type PromptListResponse = {
     items: Prompt[];
     tags: string[];
@@ -137,13 +141,13 @@ async function getAllPrompts(): Promise<Prompt[]> {
 }
 
 export async function fetchPrompts({ keyword = "", tag = [], category = ALL_PROMPTS_OPTION, page = 1, pageSize = 20 }: { keyword?: string; tag?: string[]; category?: string; page?: number; pageSize?: number } = {}) {
-    const items = await getAllPrompts();
+    const items = (await getAllPrompts()).slice(0, PROMPT_LIBRARY_LIMIT);
     const normalizedKeyword = keyword.trim().toLowerCase();
     const normalizedPage = Math.max(1, page);
     const normalizedPageSize = Math.max(1, Math.min(100, pageSize));
     const withoutTagFilter = filterPrompts(items, { keyword: normalizedKeyword, category, tags: [] });
     const filtered = filterPrompts(items, { keyword: normalizedKeyword, category, tags: tag });
-    const categories = enabledSources().map((source) => source.name);
+    const categories = [...PROMPT_CATEGORIES];
 
     return {
         items: filtered.slice((normalizedPage - 1) * normalizedPageSize, normalizedPage * normalizedPageSize),
@@ -205,7 +209,7 @@ function summarizeRefresh(results: PromptSourceRefreshResult[]): PromptSourceRef
 
 function filterPrompts(items: Prompt[], options: { keyword: string; category: string; tags: string[] }) {
     return items.filter((item) => {
-        if (isActiveOption(options.category) && item.category !== options.category) return false;
+        if (isActiveOption(options.category) && ![item.title, item.prompt, item.description, ...item.tags].join(" ").includes(options.category)) return false;
         if (options.tags.length && !options.tags.some((tag) => item.tags.includes(tag))) return false;
         if (!options.keyword) return true;
         return [item.title, item.prompt, item.description, item.category, ...item.tags].join(" ").toLowerCase().includes(options.keyword);
@@ -213,7 +217,7 @@ function filterPrompts(items: Prompt[], options: { keyword: string; category: st
 }
 
 function collectTags(items: Prompt[]) {
-    return Array.from(new Set(items.flatMap((item) => item.tags).filter(Boolean)));
+    return PROMPT_TAGS.filter((tag) => items.some((item) => item.tags.includes(tag)));
 }
 
 function isActiveOption(value: string) {

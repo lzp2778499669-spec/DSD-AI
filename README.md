@@ -150,6 +150,14 @@ docker compose up -d
 
 运行后默认端口3000，可访问 `http://localhost:3000`。
 
+当前项目分支的本地开发部署还包含 PocketBase 账号审核服务，请使用本地构建配置启动：
+
+```bash
+docker compose -f docker-compose.local.yml up -d --build
+```
+
+首次启动后先访问 `http://localhost:8090/_/` 创建管理员账号。进入 `users` 集合，将新注册用户的 `accessStatus` 改为 `approved` 后，用户才可以进入画布、提示词库、资产和配置页面。账号数据库保存在 Docker 卷 `pocketbase_data` 中。
+
 首次打开后进入右上角配置，填入自己的 OpenAI 兼容 `Base URL` 和 `API Key`。
 
 如果默认的OpenAI接口调用方式与您的API不同，可自定义生图/视频脚本调用。
