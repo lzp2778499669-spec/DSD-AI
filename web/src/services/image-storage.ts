@@ -1,9 +1,9 @@
-import localforage from "localforage";
-
 import { nanoid } from "nanoid";
 import i18n from "@/i18n";
-import { withLocalProxy } from "@/stores/use-config-store";
 import { createImageThumbnail } from "@/lib/image-thumbnail";
+import { downloadPrivateFile, removePrivateFiles, uploadPrivateFile } from "@/services/supabase";
+import { getCurrentUserId } from "@/services/api/auth";
+import { withLocalProxy } from "@/stores/use-config-store";
 
 export type UploadedImage = {
     url: string;
@@ -14,16 +14,11 @@ export type UploadedImage = {
     mimeType: string;
 };
 
-const store = localforage.createInstance({ name: "infinite-canvas", storeName: "image_files" });
-const previewStore = localforage.createInstance({ name: "infinite-canvas", storeName: "image_previews" });
-const imageLogStore = localforage.createInstance({ name: "infinite-canvas", storeName: "image_generation_logs" });
-const videoLogStore = localforage.createInstance({ name: "infinite-canvas", storeName: "video_generation_logs" });
 const objectUrls = new Map<string, string>();
 const previewUrls = new Map<string, string>();
 const previewListeners = new Set<() => void>();
 let previewRevision = 0;
 let previewQueue: Promise<unknown> = Promise.resolve();
-const IMAGE_PREVIEW_VERSION = 1;
 const IMAGE_DOWNLOAD_TIMEOUT_MS = 10 * 60_000;
 const IMAGE_REMOTE_LOAD_TIMEOUT_MS = 10 * 60_000;
 const IMAGE_DECODE_TIMEOUT_MS = 10_000;
@@ -56,14 +51,14 @@ async function storeImage(blob: Blob, options?: ImageReadOptions): Promise<Uploa
         const meta = await loadImageMeta(url, options);
         if (!meta) throw new Error(i18n.t("common.imageReadFailed"));
         throwIfAborted(options?.signal);
-        await store.setItem(storageKey, blob);
+        await uploadPrivateFile(`${await getCurrentUserId()}/${storageKey}`, blob);
         throwIfAborted(options?.signal);
         objectUrls.set(storageKey, url);
         await storeImagePreview(storageKey, blob);
         return { url, storageKey, width: meta.width, height: meta.height, bytes: blob.size, mimeType: blob.type.startsWith("image/") ? blob.type : "" };
     } catch (error) {
         URL.revokeObjectURL(url);
-        await store.removeItem(storageKey).catch(() => undefined);
+        await removePrivateFiles([`${await getCurrentUserId()}/${storageKey}`]).catch(() => undefined);
         throw error;
     }
 }
@@ -144,7 +139,7 @@ export async function resolveImageUrl(storageKey?: string, fallback = "") {
     if (!storageKey) return fallback;
     const cached = objectUrls.get(storageKey);
     if (cached) return cached;
-    const blob = await store.getItem<Blob>(storageKey);
+    const blob = await downloadPrivateFile(`${await getCurrentUserId()}/${storageKey}`).catch(() => null);
     if (!blob) return fallback;
     const url = URL.createObjectURL(blob);
     objectUrls.set(storageKey, url);
@@ -152,10 +147,25 @@ export async function resolveImageUrl(storageKey?: string, fallback = "") {
 }
 
 export async function getImageBlob(storageKey: string) {
-    return store.getItem<Blob>(storageKey);
+    return downloadPrivateFile(`${await getCurrentUserId()}/${storageKey}`).catch(() => null);
 }
 
-// 缩略图按图片的 storageKey 另存一份 WebP，只放在本地 IndexedDB 里，不写进节点数据，也不参与导出和 WebDAV 同步。
+// 组员只读浏览他人画布时，按对方用户目录读取图片。
+const memberObjectUrls = new Map<string, string>();
+
+export async function resolveMemberImageUrl(userId: string, storageKey?: string, fallback = "") {
+    if (!storageKey) return fallback;
+    const cacheKey = `${userId}/${storageKey}`;
+    const cached = memberObjectUrls.get(cacheKey);
+    if (cached) return cached;
+    const blob = await downloadPrivateFile(cacheKey).catch(() => null);
+    if (!blob) return fallback;
+    const url = URL.createObjectURL(blob);
+    memberObjectUrls.set(cacheKey, url);
+    return url;
+}
+
+// 缩略图只在当前标签页内存缓存；原图保存在 Supabase 私有 Storage。
 export function previewUrlFor(storageKey?: string) {
     return storageKey ? previewUrls.get(storageKey) : undefined;
 }
@@ -176,8 +186,6 @@ export async function ensureImagePreview(storageKey?: string) {
     if (!storageKey) return undefined;
     const cached = previewUrls.get(storageKey);
     if (cached) return cached;
-    const stored = await previewStore.getItem<StoredImagePreview>(storageKey).catch(() => null);
-    if (stored?.version === IMAGE_PREVIEW_VERSION) return stored.blob ? cacheImagePreview(storageKey, stored.blob) : undefined;
     queueImagePreview(storageKey);
     return undefined;
 }
@@ -194,7 +202,6 @@ function queueImagePreview(storageKey: string) {
 
 async function storeImagePreview(storageKey: string, original: Blob) {
     const preview = await createImageThumbnail(original).catch(() => undefined);
-    await previewStore.setItem<StoredImagePreview>(storageKey, { version: IMAGE_PREVIEW_VERSION, blob: preview }).catch(() => undefined);
     return preview ? cacheImagePreview(storageKey, preview) : undefined;
 }
 
@@ -210,11 +217,10 @@ async function deleteImagePreview(storageKey: string) {
     const url = previewUrls.get(storageKey);
     if (url) URL.revokeObjectURL(url);
     previewUrls.delete(storageKey);
-    await previewStore.removeItem(storageKey).catch(() => undefined);
 }
 
 export async function setImageBlob(storageKey: string, blob: Blob) {
-    await store.setItem(storageKey, blob);
+    await uploadPrivateFile(`${await getCurrentUserId()}/${storageKey}`, blob);
     await deleteImagePreview(storageKey);
     await storeImagePreview(storageKey, blob);
     const url = URL.createObjectURL(blob);
@@ -235,30 +241,14 @@ export async function deleteStoredImages(keys: Iterable<string>) {
             if (url) URL.revokeObjectURL(url);
             objectUrls.delete(key);
             await deleteImagePreview(key);
-            await store.removeItem(key);
+            await removePrivateFiles([`${await getCurrentUserId()}/${key}`]);
         }),
     );
 }
 
 export async function cleanupUnusedImages(usedData: unknown) {
     const usedKeys = collectImageStorageKeys(usedData);
-    await Promise.all([
-        imageLogStore.iterate((value) => {
-            collectImageStorageKeys(value, usedKeys);
-        }),
-        videoLogStore.iterate((value) => {
-            collectImageStorageKeys(value, usedKeys);
-        }),
-    ]);
-    const unused: string[] = [];
-    await store.iterate((_value, key) => {
-        if (!usedKeys.has(key)) unused.push(key);
-    });
-    const orphanPreviews: string[] = [];
-    await previewStore.iterate((_value, key) => {
-        if (!usedKeys.has(key)) orphanPreviews.push(key);
-    });
-    await Promise.all([deleteStoredImages(unused), ...orphanPreviews.map(deleteImagePreview)]);
+    void usedKeys;
 }
 
 export function collectImageStorageKeys(value: unknown, keys = new Set<string>()) {

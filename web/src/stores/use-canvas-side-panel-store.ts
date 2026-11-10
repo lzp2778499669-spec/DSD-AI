@@ -19,13 +19,11 @@ function initialWidth() {
 }
 
 function initialOpen() {
-    if (typeof window === "undefined") return true;
-    return localStorage.getItem(OPEN_KEY) !== "0";
+    return typeof window === "undefined" || localStorage.getItem(OPEN_KEY) !== "0";
 }
 
 function initialNodeView(): CanvasNodeViewMode {
-    if (typeof window === "undefined") return "list";
-    return localStorage.getItem(NODE_VIEW_KEY) === "grid" ? "grid" : "list";
+    return typeof window === "undefined" || localStorage.getItem(NODE_VIEW_KEY) !== "grid" ? "list" : "grid";
 }
 
 type CanvasSidePanelStore = {

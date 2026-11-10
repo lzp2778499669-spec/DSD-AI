@@ -1,9 +1,16 @@
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 
 import { AppConfigPanel } from "@/components/layout/app-config-modal";
+import type { ConfigTabKey } from "@/stores/use-config-store";
+
+const configTabs: ConfigTabKey[] = ["channels", "groups", "user-review", "local-proxy", "preferences", "webdav", "local-storage"];
 
 export default function ConfigPage() {
     const { t } = useTranslation();
+    const [params] = useSearchParams();
+    const tab = params.get("tab") as ConfigTabKey | null;
+    const initialTab = tab && configTabs.includes(tab) ? tab : "channels";
 
     return (
         <main className="h-full overflow-y-auto bg-background">
@@ -12,7 +19,7 @@ export default function ConfigPage() {
                     <h1 className="text-xl font-semibold text-stone-950 dark:text-stone-100">{t("config.title")}</h1>
                     <p className="mt-1 text-sm text-stone-500">{t("config.description")}</p>
                 </div>
-                <AppConfigPanel />
+                <AppConfigPanel initialTab={initialTab} />
             </div>
         </main>
     );

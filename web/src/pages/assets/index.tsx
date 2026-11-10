@@ -17,7 +17,6 @@ type AssetFormValues = {
     title: string;
     coverUrl: string;
     tags: string[];
-    source?: string;
     note?: string;
     content?: string;
 };
@@ -77,7 +76,7 @@ export default function AssetsPage() {
         setEditingAsset(null);
         setImageDraft(null);
         setFormKind("text");
-        form.setFieldsValue({ kind: "text", title: "", coverUrl: "", tags: [], source: t("assets.manual"), note: "", content: "" });
+        form.setFieldsValue({ kind: "text", title: "", coverUrl: "", tags: [], note: "", content: "" });
         setIsAssetOpen(true);
     };
 
@@ -90,7 +89,6 @@ export default function AssetsPage() {
             title: asset.title,
             coverUrl: asset.coverUrl,
             tags: asset.tags || [],
-            source: asset.source,
             note: asset.note,
             content: asset.kind === "text" ? asset.data.content : "",
         });
@@ -103,7 +101,6 @@ export default function AssetsPage() {
             title: values.title.trim(),
             coverUrl: values.coverUrl?.trim() || (values.kind === "image" && imageDraft ? imageDraft.dataUrl : ""),
             tags: values.tags || [],
-            source: values.source?.trim(),
             note: values.note?.trim(),
             metadata: editingAsset?.metadata || { source: "manual" },
         };
@@ -195,89 +192,79 @@ export default function AssetsPage() {
 
     return (
         <div className="flex h-full flex-col overflow-hidden bg-background text-stone-900 dark:text-stone-100">
-            <main className="min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] px-6 py-8 [background-size:16px_16px] dark:bg-[radial-gradient(rgba(245,245,244,.14)_1px,transparent_1px)]">
-                <div className="pb-8">
-                    <div className="mx-auto max-w-5xl text-center">
-                        <h1 className="text-4xl font-semibold tracking-tight text-stone-950 dark:text-stone-100">{t("assets.title")}</h1>
-                        <p className="mt-3 text-sm text-stone-500 dark:text-stone-400">{t("assets.description")}</p>
+            <main className="min-h-0 flex-1 overflow-y-auto bg-background px-4 py-6 sm:px-6 lg:py-8">
+                <div className="mx-auto max-w-7xl">
+                    <div className="text-center">
+                        <h1 className="text-2xl font-semibold text-stone-950 dark:text-stone-100">{t("assets.title")}</h1>
+                        <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">{t("assets.description")}</p>
                     </div>
 
-                    <div className="mx-auto mt-8 w-full max-w-2xl">
-                        <Input.Search
-                            className="w-full"
-                            size="large"
-                            allowClear
-                            prefix={<Search className="size-4 text-stone-400" />}
-                            value={keyword}
-                            placeholder={t("assets.search")}
-                            onChange={(event) => {
-                                setPage(1);
-                                setKeyword(event.target.value);
-                            }}
-                            onSearch={(value) => {
-                                setPage(1);
-                                setKeyword(value);
-                            }}
-                        />
-                    </div>
-
-                    <div className="mx-auto mt-6 grid max-w-6xl gap-3 text-left">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="grid gap-2 sm:grid-cols-[56px_minmax(0,1fr)] sm:items-center">
-                                <div className="text-xs font-medium text-stone-500 dark:text-stone-400">{t("assets.type")}</div>
-                                <div className="flex flex-wrap gap-2">
-                                    {kindOptions.map((option) => (
-                                        <Tag.CheckableTag
-                                            key={option}
-                                            checked={kindFilter === option}
-                                            className={cn("prompt-filter-tag", kindFilter === option && "is-active")}
-                                            onChange={() => {
-                                                setPage(1);
-                                                setKindFilter(option);
-                                            }}
-                                        >
-                                            {option === "all" ? t("common.all") : t(`assets.kinds.${option}`)}
-                                        </Tag.CheckableTag>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="flex flex-wrap gap-4">
-                                <button
-                                    type="button"
-                                    className="cursor-pointer text-sm font-medium text-stone-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:underline dark:text-stone-300"
-                                    onClick={() => void exportAllAssets()}
-                                >
-                                    {t("assets.export")}
-                                </button>
-                                <button
-                                    type="button"
-                                    className="cursor-pointer text-sm font-medium text-stone-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:underline dark:text-stone-300"
-                                    onClick={() => assetInputRef.current?.click()}
-                                >
-                                    {t("assets.import")}
-                                </button>
-                                <button
-                                    type="button"
-                                    className="cursor-pointer text-sm font-medium text-stone-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:underline dark:text-stone-300"
-                                    onClick={openCreate}
-                                >
-                                    {t("assets.add")}
-                                </button>
+                    <div className="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                            <span className="shrink-0 text-xs font-semibold tracking-widest text-stone-400 dark:text-stone-500">{t("assets.type")}</span>
+                            <div className="flex flex-wrap gap-1.5">
+                                {kindOptions.map((option) => (
+                                    <Tag.CheckableTag
+                                        key={option}
+                                        checked={kindFilter === option}
+                                        className={cn("prompt-filter-tag", kindFilter === option && "is-active")}
+                                        onChange={() => {
+                                            setPage(1);
+                                            setKindFilter(option);
+                                        }}
+                                    >
+                                        {option === "all" ? t("common.all") : t(`assets.kinds.${option}`)}
+                                    </Tag.CheckableTag>
+                                ))}
                             </div>
                         </div>
+                        <div className="flex flex-wrap gap-4">
+                            <button
+                                type="button"
+                                className="cursor-pointer text-sm font-medium text-stone-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:underline dark:text-stone-300"
+                                onClick={() => void exportAllAssets()}
+                            >
+                                {t("assets.export")}
+                            </button>
+                            <button
+                                type="button"
+                                className="cursor-pointer text-sm font-medium text-stone-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:underline dark:text-stone-300"
+                                onClick={() => assetInputRef.current?.click()}
+                            >
+                                {t("assets.import")}
+                            </button>
+                            <button
+                                type="button"
+                                className="cursor-pointer text-sm font-medium text-stone-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:underline dark:text-stone-300"
+                                onClick={openCreate}
+                            >
+                                {t("assets.add")}
+                            </button>
+                        </div>
                     </div>
-                </div>
 
-                <div className="mx-auto flex max-w-7xl flex-col gap-5">
-                    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    <Input
+                        size="large"
+                        className="mt-4"
+                        allowClear
+                        prefix={<Search className="size-4 text-stone-400" />}
+                        value={keyword}
+                        placeholder={t("assets.search")}
+                        onChange={(event) => {
+                            setPage(1);
+                            setKeyword(event.target.value);
+                        }}
+                    />
+
+                    <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         {visibleAssets.map((asset) => (
                             <AssetCard key={asset.id} asset={asset} onOpen={() => setPreviewAsset(asset)} onEdit={() => openEdit(asset)} onCopy={copyAssetText} onDownload={downloadImage} onDelete={() => setDeletingAsset(asset)} />
                         ))}
                     </div>
 
-                    {!visibleAssets.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t("assets.empty")} className="py-20" /> : null}
+                    {!visibleAssets.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t("assets.empty")} className="py-16" /> : null}
 
-                    <div className="flex justify-center">
+                    <div className="mt-6 flex justify-center">
                         <Pagination
                             current={page}
                             pageSize={pageSize}
@@ -319,14 +306,9 @@ export default function AssetsPage() {
                         <Form.Item name="tags" label={t("assets.fields.tags")}>
                             <Select mode="tags" tokenSeparators={[",", "，"]} placeholder={t("assets.fields.tagsPlaceholder")} />
                         </Form.Item>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <Form.Item name="source" label={t("assets.fields.source")}>
-                                <Input placeholder={t("assets.fields.sourcePlaceholder")} />
-                            </Form.Item>
-                            <Form.Item name="note" label={t("assets.fields.note")}>
-                                <Input placeholder={t("assets.fields.optional")} />
-                            </Form.Item>
-                        </div>
+                        <Form.Item name="note" label={t("assets.fields.note")}>
+                            <Input placeholder={t("assets.fields.optional")} />
+                        </Form.Item>
                         {formKind === "text" ? (
                             <Form.Item name="content" label={t("assets.fields.textContent")} rules={[{ required: true, message: t("assets.fields.textRequired") }]}>
                                 <Input.TextArea rows={8} placeholder={t("assets.fields.textPlaceholder")} />
@@ -435,9 +417,6 @@ function AssetCard({ asset, onOpen, onEdit, onCopy, onDownload, onDelete }: { as
                     <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                             <h2 className="line-clamp-1 text-sm font-semibold text-stone-950 dark:text-stone-100">{asset.title}</h2>
-                            <Typography.Text type="secondary" className="mt-1 block text-xs">
-                                {asset.source || t("assets.unknownSource")}
-                            </Typography.Text>
                         </div>
                         <Tag className="m-0 shrink-0 text-[11px]">{t(`assets.kinds.${asset.kind}`)}</Tag>
                     </div>
@@ -561,5 +540,5 @@ function assetSummary(asset: Asset) {
 }
 
 function assetSearchText(asset: Asset) {
-    return [asset.title, asset.source || "", asset.note || "", (asset.tags || []).join(" "), asset.kind === "text" ? asset.data.content : asset.data.mimeType].join(" ").toLowerCase();
+    return [asset.title, asset.note || "", (asset.tags || []).join(" "), asset.kind === "text" ? asset.data.content : asset.data.mimeType].join(" ").toLowerCase();
 }

@@ -18,7 +18,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     const initialize = useAuthStore((state) => state.initialize);
     const refresh = useAuthStore((state) => state.refresh);
     const [activeKey, setActiveKey] = useState("login");
-    const [username, setUsername] = useState(() => localStorage.getItem("infinite-canvas:remembered-username") || "");
+    const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [remember, setRemember] = useState(() => sessionStorage.getItem("infinite-canvas:remember-session") !== "1");
     const [busy, setBusy] = useState(false);
@@ -26,7 +26,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
     const protectedPath = location.pathname === "/canvas" || location.pathname.startsWith("/canvas/") || ["/prompts", "/assets", "/config"].includes(location.pathname);
     const initialized = useAuthStore((state) => state.initialized);
-    const modalOpen = initialized && routeVerified && protectedPath && user?.accessStatus !== "approved";
+    const modalOpen = initialized && routeVerified && protectedPath && user?.accessStatus !== "已通过";
 
     useEffect(() => initialize(), [initialize]);
 
@@ -42,7 +42,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     }, [location.pathname, protectedPath, refresh]);
 
     useEffect(() => {
-        if (user?.accessStatus === "disabled") {
+        if (user?.accessStatus === "未通过") {
             logout();
             message.error(t("auth.disabled"));
         }
@@ -60,11 +60,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
                 return;
             }
             await auth.login(username, password, remember);
-            if (remember) localStorage.setItem("infinite-canvas:remembered-username", username.trim());
-            else localStorage.removeItem("infinite-canvas:remembered-username");
             const status: AccessStatus | undefined = useAuthStore.getState().user?.accessStatus;
-            if (status === "pending") message.info(t("auth.pending"));
-            else if (status === "disabled") {
+            if (status === "待审核") message.info(t("auth.pending"));
+            else if (status === "未通过") {
                 auth.logout();
                 message.error(t("auth.disabled"));
             }
@@ -94,7 +92,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
                     <img src={brand.logo} alt="" className="h-9 w-auto" />
                     <div><div className="text-base font-semibold text-stone-900 dark:text-stone-100">{brand.name} {brand.product}</div><div className="mt-1 text-xs text-stone-500">{t("auth.subtitle")}</div></div>
                 </div>
-                {user?.accessStatus === "pending" ? (
+                {user?.accessStatus === "待审核" ? (
                     <div className="py-7 text-center">
                         <div className="mx-auto grid size-12 place-items-center rounded-full bg-amber-50 text-amber-700"><LockKeyhole className="size-5" /></div>
                         <h2 className="mt-4 text-lg font-semibold">{t("auth.pendingTitle")}</h2>
@@ -105,7 +103,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
                     <>
                         <Tabs activeKey={activeKey} onChange={setActiveKey} items={[{ key: "login", label: t("auth.loginTab") }, { key: "register", label: t("auth.registerTab") }]} />
                         <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
-                            <Input size="large" autoComplete="username" prefix={<UserRound className="size-4 text-stone-400" />} placeholder={t("auth.username")} value={username} onChange={(event) => setUsername(event.target.value)} minLength={3} maxLength={80} required />
+                            <Input size="large" autoComplete="username" prefix={<UserRound className="size-4 text-stone-400" />} placeholder={t("auth.username")} value={username} onChange={(event) => setUsername(event.target.value)} maxLength={254} required />
                             <Input.Password size="large" autoComplete={activeKey === "login" ? "current-password" : "new-password"} prefix={<LockKeyhole className="size-4 text-stone-400" />} placeholder={t("auth.password")} value={password} onChange={(event) => setPassword(event.target.value)} required />
                             {activeKey === "login" ? (
                                 <label className="flex cursor-pointer items-center gap-2 py-1 text-sm text-stone-600 dark:text-stone-300"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} className="accent-[#a21621]" />{t("auth.remember")}</label>

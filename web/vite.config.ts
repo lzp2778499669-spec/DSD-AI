@@ -47,6 +47,8 @@ export default defineConfig({
         },
     },
     server: {
+        // Windows 下文件监听偶尔丢失变更，导致浏览器一直拿到旧模块，改用轮询保证热更新生效。
+        watch: { usePolling: true, ignored: ["**/node_modules/**", "**/.git/**"] },
         proxy: {
             "/api": { target: process.env.AUTH_API_TARGET || "http://127.0.0.1:8090", changeOrigin: true, ws: true },
             "/_/": { target: process.env.AUTH_API_TARGET || "http://127.0.0.1:8090", changeOrigin: true },

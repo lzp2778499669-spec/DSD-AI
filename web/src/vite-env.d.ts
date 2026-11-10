@@ -13,5 +13,6 @@ interface ImportMetaEnv {
     readonly VITE_ANALYTICS_BAIDU_ID?: string;
     // 账户接口地址；不配置时使用浏览器本地账户。
     readonly VITE_ACCOUNT_API_URL?: string;
-    readonly VITE_AUTH_API_URL?: string;
+    readonly VITE_SUPABASE_URL?: string;
+    readonly VITE_SUPABASE_ANON_KEY?: string;
 }

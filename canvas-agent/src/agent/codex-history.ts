@@ -557,14 +557,13 @@ function canvasContentSummary(nodes: unknown[], connections: number) {
         result[type] = (result[type] || 0) + 1;
         return result;
     }, {});
-    const known = new Set(["text", "image", "config", "video", "audio", "group"]);
+    const known = new Set(["text", "image", "config", "video", "group"]);
     const other = Object.entries(counts).reduce((total, [type, count]) => total + (known.has(type) ? 0 : count), 0);
     const parts = [
         counts.text ? `${counts.text} 个文本` : "",
         counts.image ? `${counts.image} 张图片` : "",
         counts.config ? `${counts.config} 个配置` : "",
         counts.video ? `${counts.video} 个视频` : "",
-        counts.audio ? `${counts.audio} 个音频` : "",
         counts.group ? `${counts.group} 个分组` : "",
         other ? `${other} 个其他节点` : "",
         connections ? `${connections} 条连线` : "",
@@ -718,7 +717,6 @@ function toolName(name: string) {
     if (name === "canvas_generate_text") return "生成文本";
     if (name === "canvas_generate_image") return "生成图片";
     if (name === "canvas_generate_video") return "生成视频";
-    if (name === "canvas_generate_audio") return "生成音频";
     if (name === "canvas_update_node") return "更新节点";
     if (name === "canvas_update_node_text") return "更新文本";
     if (name === "canvas_move_nodes") return "移动节点";

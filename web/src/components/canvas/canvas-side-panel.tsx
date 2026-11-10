@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
 import { App, Empty, Input, Popconfirm, Select, Spin, Tag } from "antd";
-import { Check, ChevronRight, Download, Eye, FileText, Image as ImageIcon, LayoutGrid, ListChecks, Music2, Plus, Rows3, Search, Settings2, Square, Trash2, Type, Video } from "lucide-react";
+import { Check, ChevronRight, Download, Eye, FileText, Image as ImageIcon, LayoutGrid, ListChecks, Plus, Rows3, Search, Settings2, Square, Trash2, Type, Video } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -48,7 +48,6 @@ type Props = {
 const NODE_TYPE_ICON: Record<string, typeof Square> = {
     [CanvasNodeType.Image]: ImageIcon,
     [CanvasNodeType.Video]: Video,
-    [CanvasNodeType.Audio]: Music2,
     [CanvasNodeType.Text]: Type,
     [CanvasNodeType.Config]: Settings2,
     [CanvasNodeType.Group]: Square,
@@ -213,7 +212,7 @@ function CanvasToolsTab({ theme, onUseTool }: { theme: CanvasTheme; onUseTool: (
 // Canvas tab: list nodes and center, zoom, and select the clicked node.
 // ---------------------------------------------------------------------------
 
-const NODE_FILTER_VALUES = ["all", CanvasNodeType.Image, CanvasNodeType.Video, CanvasNodeType.Text, CanvasNodeType.Audio, CanvasNodeType.Config, CanvasNodeType.Group];
+const NODE_FILTER_VALUES = ["all", CanvasNodeType.Image, CanvasNodeType.Video, CanvasNodeType.Text, CanvasNodeType.Config, CanvasNodeType.Group];
 
 function nodePreviewText(node: CanvasNodeData) {
     if (node.type === CanvasNodeType.Text) return node.metadata?.content || node.metadata?.prompt || "";

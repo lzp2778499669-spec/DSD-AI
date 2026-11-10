@@ -316,7 +316,7 @@ function aiApiUrl(config: AiConfig, path: string) {
 
 function aiHeaders(config: AiConfig, contentType?: string) {
     return {
-        Authorization: `Bearer ${config.apiKey}`,
+        Authorization: `Bearer ${config.apiKey.trim()}`,
         ...(contentType ? { "Content-Type": contentType } : {}),
     };
 }
@@ -339,7 +339,7 @@ function geminiApiUrl(config: Pick<AiConfig, "baseUrl" | "model">, action?: "gen
 
 function geminiHeaders(config: Pick<AiConfig, "apiKey">) {
     return {
-        "x-goog-api-key": config.apiKey,
+        "x-goog-api-key": config.apiKey.trim(),
         "Content-Type": "application/json",
     };
 }
@@ -498,6 +498,91 @@ async function requestStreamingResponse(config: AiConfig, body: Record<string, u
     validateResponsePayload(state.payload);
     const result = parseToolResponse(state.payload);
     return { ...result, content: state.text || result.content };
+}
+
+type ChatStreamState = { buffer: string; text: string; error?: string };
+
+function toChatMessages(messages: ResponseInputMessage[]) {
+    return messages.flatMap((message) => {
+        if ("type" in message) return [];
+        if (message.role === "tool") return [{ role: "tool", tool_call_id: message.tool_call_id, content: message.content }];
+        const content = Array.isArray(message.content)
+            ? message.content.map((item) => (item.type === "text" ? { type: "text", text: item.text } : { type: "image_url", image_url: item.image_url }))
+            : String(message.content || "");
+        return [{ role: message.role, content }];
+    });
+}
+
+function consumeChatStreamBlock(block: string, state: ChatStreamState, onDelta?: (text: string) => void) {
+    const data = block
+        .split(/\r?\n/)
+        .filter((line) => line.startsWith("data:"))
+        .map((line) => line.slice(5).replace(/^ /, ""))
+        .join("\n")
+        .trim();
+    if (!data || data === "[DONE]") return;
+    let event: Record<string, unknown>;
+    try {
+        event = JSON.parse(data) as Record<string, unknown>;
+    } catch {
+        return;
+    }
+    if (isRecord(event.error)) {
+        const message = stringValue(event.error.message);
+        if (message) state.error = message;
+    }
+    const choice = Array.isArray(event.choices) && isRecord(event.choices[0]) ? event.choices[0] : null;
+    const delta = choice && isRecord(choice.delta) ? choice.delta : null;
+    const content = delta ? stringValue(delta.content) : "";
+    if (content) {
+        state.text += content;
+        onDelta?.(state.text);
+    }
+}
+
+function consumeChatStreamText(state: ChatStreamState, text: string, onDelta?: (text: string) => void, flush = false) {
+    state.buffer += text;
+    for (;;) {
+        const match = state.buffer.match(/\r?\n\r?\n/);
+        if (!match) break;
+        const index = match.index ?? 0;
+        consumeChatStreamBlock(state.buffer.slice(0, index), state, onDelta);
+        state.buffer = state.buffer.slice(index + match[0].length);
+    }
+    if (flush && state.buffer.trim()) {
+        consumeChatStreamBlock(state.buffer, state, onDelta);
+        state.buffer = "";
+    }
+}
+
+async function requestChatStreamingResponse(config: AiConfig, messages: ResponseInputMessage[], onDelta?: (text: string) => void, options?: RequestOptions): Promise<ToolResponseResult> {
+    const response = await fetch(aiApiUrl(config, "/chat/completions"), {
+        method: "POST",
+        headers: { ...aiHeaders(config, "application/json"), Accept: "text/event-stream" },
+        body: JSON.stringify({ model: config.model, messages: toChatMessages(messages), stream: true }),
+        signal: options?.signal,
+    });
+    if (!response.ok) throw new Error(await readFetchError(response, apiText("requestFailed")));
+    if (!response.body) {
+        const payload = (await response.json()) as Record<string, unknown>;
+        const choice = Array.isArray(payload.choices) && isRecord(payload.choices[0]) ? payload.choices[0] : null;
+        const message = choice && isRecord(choice.message) ? choice.message : null;
+        const content = message ? stringValue(message.content) : "";
+        if (content) onDelta?.(content);
+        return { content, toolCalls: [] };
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    const state: ChatStreamState = { buffer: "", text: "" };
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        consumeChatStreamText(state, decoder.decode(value, { stream: true }), onDelta);
+        if (state.error) throw new Error(state.error);
+    }
+    consumeChatStreamText(state, decoder.decode(), onDelta, true);
+    if (state.error) throw new Error(state.error);
+    return { content: state.text, toolCalls: [] };
 }
 
 function toGeminiBody(config: AiConfig, messages: ResponseInputMessage[], extra?: Record<string, unknown>) {
@@ -841,6 +926,11 @@ export async function requestImageQuestion(config: AiConfig, messages: AiTextMes
     try {
         if (requestConfig.apiFormat === "gemini") {
             const answer = (await requestGeminiStreamingResponse(requestConfig, toGeminiBody(requestConfig, messages), onDelta, options)).content || apiText("noContent");
+            if (answer === apiText("noContent")) onDelta(answer);
+            return answer;
+        }
+        if (requestConfig.apiFormat === "openai-chat") {
+            const answer = (await requestChatStreamingResponse(requestConfig, withSystemMessage(requestConfig, messages), onDelta, options)).content || apiText("noContent");
             if (answer === apiText("noContent")) onDelta(answer);
             return answer;
         }

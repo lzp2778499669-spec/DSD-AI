@@ -485,6 +485,7 @@ function InfiniteCanvasPage() {
         if (!searchParams.has("agentUrl") && !localAgentEnabled && !fragmentBootstrap) openAgentPanel();
     }, [fragmentBootstrap, localAgentEnabled, openAgentPanel, projectLoaded, searchParams]);
 
+
     useEffect(() => {
         if (!projectLoaded || applyingHistoryRef.current || historyPausedRef.current) return;
         const next = createHistoryEntry();
@@ -795,26 +796,7 @@ function InfiniteCanvasPage() {
         return map;
     }, [connections, nodeById]);
     const referenceConnectedNodeIds = useMemo(() => new Set([referencePickerNodeId, ...(referencePickerNodeId ? connectedNodesByNodeId.get(referencePickerNodeId)?.flatMap((node) => node.type === CanvasNodeType.Group ? [node.id, ...getGroupResourceNodes(node.id, nodes).map((child) => child.id)] : [node.id]) || [] : [])].filter((id): id is string => Boolean(id))), [connectedNodesByNodeId, nodes, referencePickerNodeId]);
-    const { applyAgentOps } = useAgentBridge({
-        projectId,
-        title: currentProject?.title,
-        nodes,
-        connections,
-        selectedNodeIds,
-        viewport,
-        nodesRef,
-        connectionsRef,
-        selectedNodeIdsRef,
-        viewportRef,
-        generateNodeRef,
-        setNodes,
-        setConnections,
-        setSelectedNodeIds,
-        setSelectedConnectionId,
-        setViewport,
-        setContextMenu,
-    });
-
+    const { applyAgentOps } = useAgentBridge({ projectId, title: currentProject?.title, nodes, connections, selectedNodeIds, viewport, nodesRef, connectionsRef, selectedNodeIdsRef, viewportRef, generateNodeRef, setNodes, setConnections, setSelectedNodeIds, setSelectedConnectionId, setViewport, setContextMenu });
     const { pluginHost, renderPluginPanel, buildNodeToolbarItems } = usePluginHost({
         effectiveConfig,
         isAiConfigReady,
@@ -1847,7 +1829,7 @@ function InfiniteCanvasPage() {
             if (node.type === CanvasNodeType.Text) {
                 const content = node.metadata?.content?.trim();
                 if (!content) return message.error(t("canvas.projectPage.noTextToSave"));
-                addAsset({ kind: "text", title: node.metadata?.prompt?.slice(0, 24) || t("canvas.projectPage.canvasText"), coverUrl: "", tags: [], source: "Canvas", data: { content }, metadata: { source: "canvas", nodeId: node.id } });
+                addAsset({ kind: "text", title: node.metadata?.prompt?.slice(0, 24) || t("canvas.projectPage.canvasText"), coverUrl: "", tags: [], data: { content }, metadata: { source: "canvas", nodeId: node.id } });
                 message.success(t("common.addedToAssets"));
                 return;
             }
@@ -1858,7 +1840,6 @@ function InfiniteCanvasPage() {
                     title: node.metadata?.prompt?.slice(0, 24) || t("canvas.projectPage.canvasVideo"),
                     coverUrl: "",
                     tags: [],
-                    source: "Canvas",
                     data: { url: node.metadata.content, storageKey: node.metadata.storageKey, width: node.width, height: node.height, bytes: node.metadata.bytes || 0, mimeType: node.metadata.mimeType || "video/mp4" },
                     metadata: { source: "canvas", nodeId: node.id, prompt: node.metadata?.prompt },
                 });
@@ -1872,7 +1853,6 @@ function InfiniteCanvasPage() {
                 title: node.metadata?.prompt?.slice(0, 24) || t("canvas.projectPage.canvasImage"),
                 coverUrl: node.metadata.content,
                 tags: [],
-                source: "Canvas",
                 data: {
                     dataUrl,
                     storageKey: node.metadata.storageKey,

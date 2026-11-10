@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { CreditsModal, MembershipModal, ProfileModal } from "@/components/layout/account-modals";
 import { GitHubLink } from "@/components/layout/github-link";
 import { VersionReleaseModal } from "@/components/layout/version-release-modal";
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { topBarEntries } from "@/constant/brand";
 import { DOCS_URL } from "@/constant/env";
 import { changeAppLocale, type AppLocale } from "@/i18n";
@@ -64,6 +65,17 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
     return (
         <>
             <div className="inline-flex shrink-0 items-center gap-1.5">
+                {variant === "default" ? (
+                    <Tooltip title={t("theme.toggle")} mouseEnterDelay={0.2}>
+                        <AnimatedThemeToggler
+                            theme={theme}
+                            onThemeChange={setTheme}
+                            aria-label={t("theme.toggle")}
+                            title={t("theme.toggle")}
+                            className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-stone-600 transition-colors hover:bg-black/5 hover:text-stone-950 dark:text-stone-300 dark:hover:bg-white/10 dark:hover:text-white [&_svg]:size-4"
+                        />
+                    </Tooltip>
+                ) : null}
                 {topBarEntries.language ? (
                     <Tooltip title={languageLabel} mouseEnterDelay={0.2}>
                         <button

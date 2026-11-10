@@ -275,7 +275,7 @@ function listAssets(input: SiteToolInput) {
     const filtered = assets.filter((asset) => {
         if (kind !== "all" && asset.kind !== kind) return false;
         if (!keyword) return true;
-        return [asset.title, asset.note, asset.source, ...asset.tags].filter(Boolean).join(" ").toLowerCase().includes(keyword);
+        return [asset.title, asset.note, ...asset.tags].filter(Boolean).join(" ").toLowerCase().includes(keyword);
     });
     const { page, pageSize, start, end } = paginate(input, filtered.length, 20);
     const items = filtered.slice(start, end).map((asset) => ({
@@ -283,7 +283,6 @@ function listAssets(input: SiteToolInput) {
         kind: asset.kind,
         title: asset.title,
         tags: asset.tags,
-        source: asset.source,
         note: asset.note,
         createdAt: asset.createdAt,
         updatedAt: asset.updatedAt,
@@ -298,13 +297,12 @@ async function addAsset(input: SiteToolInput) {
     const title = String(input.title || "").trim();
     if (!title) throw new Error(siteText("assetTitleRequired"));
     const tags = Array.isArray(input.tags) ? input.tags.filter((tag): tag is string => typeof tag === "string") : [];
-    const source = typeof input.source === "string" ? input.source : "Agent";
     const note = typeof input.note === "string" ? input.note : undefined;
     const store = useAssetStore.getState();
     if (kind === "text") {
         const content = String(input.content || "").trim();
         if (!content) throw new Error(siteText("textContentRequired"));
-        const id = store.addAsset({ kind: "text", title, coverUrl: "", tags, source, note, data: { content } });
+        const id = store.addAsset({ kind: "text", title, coverUrl: "", tags, note, data: { content } });
         return { ok: true, id, kind: "text" };
     }
     if (kind === "image") {
@@ -316,7 +314,7 @@ async function addAsset(input: SiteToolInput) {
         } catch {
             throw new Error(siteText("imageReadFailed"));
         }
-        const id = store.addAsset({ kind: "image", title, coverUrl: stored.url, tags, source, note, data: { dataUrl: stored.url, storageKey: stored.storageKey, width: stored.width, height: stored.height, bytes: stored.bytes, mimeType: stored.mimeType } });
+        const id = store.addAsset({ kind: "image", title, coverUrl: stored.url, tags, note, data: { dataUrl: stored.url, storageKey: stored.storageKey, width: stored.width, height: stored.height, bytes: stored.bytes, mimeType: stored.mimeType } });
         return { ok: true, id, kind: "image" };
     }
     throw new Error(siteText("assetKindUnsupported"));

@@ -1,5 +1,3 @@
-import localforage from "localforage";
-
 import { runPromptSource, type RawPrompt } from "./prompt-source-runtime";
 import { usePromptSourceStore } from "@/stores/use-prompt-source-store";
 import i18n from "@/i18n";
@@ -50,7 +48,7 @@ type SourceCache = PromptSourceStatus & {
 };
 
 const cacheTtlMs = 1000 * 60 * 60;
-const promptCacheStore = localforage.createInstance({ name: "infinite-canvas", storeName: "prompt_cache" });
+const promptCacheStore = new Map<string, SourceCache>();
 const loadingSources = new Map<string, Promise<PromptSourceRefreshResult>>();
 
 function enabledSources() {
@@ -80,7 +78,7 @@ function withSourceMeta(source: PromptSource, items: RawPrompt[]): Prompt[] {
 }
 
 async function readSourceCache(sourceId: string) {
-    return promptCacheStore.getItem<SourceCache>(cacheKey(sourceId));
+    return promptCacheStore.get(cacheKey(sourceId)) || null;
 }
 
 async function refreshSourceRecord(source: PromptSource): Promise<PromptSourceRefreshResult> {
@@ -89,7 +87,7 @@ async function refreshSourceRecord(source: PromptSource): Promise<PromptSourceRe
         const items = withSourceMeta(source, await runPromptSource(source));
         const lastSuccessAt = new Date().toISOString();
         const cache: SourceCache = { sourceId: source.id, items, count: items.length, fetchedAt: Date.now(), lastSuccessAt, lastError: "", signature: sourceSignature(source) };
-        await promptCacheStore.setItem(cacheKey(source.id), cache);
+        promptCacheStore.set(cacheKey(source.id), cache);
         return { sourceId: source.id, sourceName: source.name, count: items.length, lastSuccessAt, lastError: "", success: true };
     } catch (error) {
         const lastError = error instanceof Error ? error.message : String(error);
@@ -102,7 +100,7 @@ async function refreshSourceRecord(source: PromptSource): Promise<PromptSourceRe
             lastError,
             signature: previous?.signature || sourceSignature(source),
         };
-        await promptCacheStore.setItem(cacheKey(source.id), cache);
+        promptCacheStore.set(cacheKey(source.id), cache);
         return { sourceId: source.id, sourceName: source.name, count: cache.count, lastSuccessAt: cache.lastSuccessAt, lastError, success: false };
     }
 }

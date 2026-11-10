@@ -1,6 +1,8 @@
 import { create } from "zustand";
 
 import { loadAccount, rechargeCredits, subscribeMembership, updateProfile, type AccountProfile, type AccountSnapshot, type CreditRecord, type Membership, type MembershipPlan } from "@/services/api/account";
+import { supabaseEnabled } from "@/services/supabase";
+import { supabase } from "@/services/supabase";
 
 type AccountStore = {
     profile: AccountProfile;
@@ -42,13 +44,25 @@ export const useAccountStore = create<AccountStore>()((set, get) => ({
         if (get().loading) return;
         set({ loading: true });
         try {
+            if (!supabaseEnabled) throw new Error("Supabase 尚未配置，账号数据不会保存到本机");
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) { set({ loaded: true }); return; }
             set({ ...applySnapshot(await loadAccount()), loaded: true });
         } finally {
             set({ loading: false });
         }
     },
-    recharge: async (planId) => set(applySnapshot(await rechargeCredits(planId))),
-    subscribe: async (planId) => set(applySnapshot(await subscribeMembership(planId))),
-    saveProfile: async (patch) => set(applySnapshot(await updateProfile(patch))),
+    recharge: async (planId) => {
+        const snapshot = await rechargeCredits(planId);
+        set(applySnapshot(snapshot));
+    },
+    subscribe: async (planId) => {
+        const snapshot = await subscribeMembership(planId);
+        set(applySnapshot(snapshot));
+    },
+    saveProfile: async (patch) => {
+        const snapshot = await updateProfile(patch);
+        set(applySnapshot(snapshot));
+    },
     reset: () => set({ profile: initialProfile, credits: 0, membership: initialMembership, records: [], plans: [], loaded: false }),
 }));

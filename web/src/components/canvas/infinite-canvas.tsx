@@ -5,7 +5,7 @@ import { useThemeStore } from "@/stores/use-theme-store";
 import type { ViewportTransform } from "@/types/canvas";
 
 type InfiniteCanvasProps = {
-    containerRef: React.RefObject<HTMLDivElement | null>;
+    containerRef?: React.RefObject<HTMLDivElement | null>;
     viewport: ViewportTransform;
     tool: "select" | "pan";
     backgroundMode?: CanvasBackgroundMode;
@@ -91,7 +91,7 @@ export function InfiniteCanvas({ containerRef, viewport, tool, backgroundMode = 
         const delta = -event.deltaY;
         const factor = Math.pow(1.1, delta / 100);
         const newScale = Math.min(Math.max(viewport.k * factor, 0.05), 5);
-        const rect = containerRef.current?.getBoundingClientRect();
+        const rect = containerRef?.current?.getBoundingClientRect();
         if (!rect) return;
 
         const mouseX = event.clientX - rect.left;

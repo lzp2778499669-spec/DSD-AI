@@ -3,7 +3,7 @@ import { App, Button, Input, Modal } from "antd";
 import { Coins, Crown, Mail, UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { accountApiMode, type MembershipPlan } from "@/services/api/account";
+import type { MembershipPlan } from "@/services/api/account";
 import { brand } from "@/constant/brand";
 import { useAccountStore } from "@/stores/use-account-store";
 
@@ -64,7 +64,7 @@ export function CreditsModal({ open, onClose }: { open: boolean; onClose: () => 
                     {t("account.currentCredits")}
                 </div>
                 <div className="mt-1 text-4xl font-semibold tracking-tight">{credits.toLocaleString()}</div>
-                <div className="mt-1 text-xs text-stone-400 dark:text-stone-500">{accountApiMode === "remote" ? t("account.remoteData") : t("account.localData")}</div>
+                <div className="mt-1 text-xs text-stone-400 dark:text-stone-500">Supabase</div>
             </div>
 
             <div className="mt-5 text-sm font-semibold">{t("account.recharge")}</div>

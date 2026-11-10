@@ -30,8 +30,7 @@ export function AppTopNav() {
     const theme = useThemeStore((state) => state.theme);
 
     useEffect(() => {
-        if (!topBarEntries.agent) return;
-        if (autoConnectRef.current || agentEnabled || agentConnected || !agentToken.trim()) return;
+        if (!topBarEntries.agent || autoConnectRef.current || agentEnabled || agentConnected || !agentToken.trim()) return;
         autoConnectRef.current = true;
         connectAgent({ silent: true });
     }, [agentConnected, agentEnabled, agentToken, connectAgent]);

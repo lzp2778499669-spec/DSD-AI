@@ -37,11 +37,7 @@ export function createPluginStorage(pluginId: string): PluginStorage {
     }
     return {
         get: (key) => store!.getItem(key),
-        set: async (key, value) => {
-            await store!.setItem(key, value);
-        },
-        remove: async (key) => {
-            await store!.removeItem(key);
-        },
+        set: async (key, value) => { await store!.setItem(key, value); },
+        remove: async (key) => { await store!.removeItem(key); },
     };
 }

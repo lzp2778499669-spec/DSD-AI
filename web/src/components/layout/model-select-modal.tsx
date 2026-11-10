@@ -28,6 +28,14 @@ export function ModelSelectModal({ open, channel, selectedNames, onConfirm, onCl
         setManual("");
     }, [open, selectedNames]);
 
+    // 已知平台的常用模型，方便在还没填入 Key 或拉取失败时直接添加。
+    const presetModels = useMemo(() => {
+        const baseUrl = channel?.baseUrl.trim().toLowerCase() || "";
+        if (baseUrl.includes("deepseek.com")) return ["deepseek-chat", "deepseek-reasoner"];
+        if (baseUrl.includes("moonshot.cn")) return ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k"];
+        return [];
+    }, [channel?.baseUrl]);
+
     const currentList = activeTab === "new" ? fetched : existing;
     const visibleList = useMemo(() => {
         const keyword = search.trim().toLowerCase();
@@ -56,6 +64,12 @@ export function ModelSelectModal({ open, channel, selectedNames, onConfirm, onCl
         if (!fetched.includes(name) && !existing.includes(name)) setFetched((current) => [name, ...current]);
         setSelected((current) => new Set(current).add(name));
         setManual("");
+        setActiveTab("new");
+    };
+
+    const addPreset = (name: string) => {
+        if (!fetched.includes(name) && !existing.includes(name)) setFetched((current) => [name, ...current]);
+        setSelected((current) => new Set(current).add(name));
         setActiveTab("new");
     };
 
@@ -114,6 +128,10 @@ export function ModelSelectModal({ open, channel, selectedNames, onConfirm, onCl
                 </Button>
             </div>
             <div className="mt-2 text-xs text-stone-500">{t("config.modelSelect.description")}</div>
+            {presetModels.length ? <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className="text-xs text-stone-500">推荐模型：</span>
+                {presetModels.map((name) => <Button key={name} size="small" onClick={() => addPreset(name)}>{name}</Button>)}
+            </div> : null}
 
             <Tabs
                 className="mt-3"

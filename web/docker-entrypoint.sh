@@ -13,13 +13,14 @@ sanitize_id() {
 
 GA4_ID=$(sanitize_id "${ANALYTICS_GA4_ID:-}")
 BAIDU_ID=$(sanitize_id "${ANALYTICS_BAIDU_ID:-}")
-AUTH_API_URL=$(printf '%s' "${AUTH_API_URL:-/}" | tr -cd 'A-Za-z0-9_./:-')
-if [ -z "$AUTH_API_URL" ]; then AUTH_API_URL=/; fi
+SUPABASE_URL=$(printf '%s' "${SUPABASE_URL:-}" | tr -cd 'A-Za-z0-9_./:-')
+SUPABASE_ANON_KEY=$(printf '%s' "${SUPABASE_ANON_KEY:-}" | tr -cd 'A-Za-z0-9_-')
 
 cat > /usr/share/nginx/html/config.js <<EOF
 window.__RUNTIME_CONFIG__ = {
   ANALYTICS_GA4_ID: "${GA4_ID}",
   ANALYTICS_BAIDU_ID: "${BAIDU_ID}",
-  AUTH_API_URL: "${AUTH_API_URL}"
+  SUPABASE_URL: "${SUPABASE_URL}",
+  SUPABASE_ANON_KEY: "${SUPABASE_ANON_KEY}"
 };
 EOF

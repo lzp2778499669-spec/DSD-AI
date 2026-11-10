@@ -1,4 +1,4 @@
-import { FileText, Image as ImageIcon, Music2, Plus, Puzzle, Video, X } from "lucide-react";
+import { FileText, Image as ImageIcon, Plus, Puzzle, Video, X } from "lucide-react";
 import { Popover } from "antd";
 import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
@@ -34,7 +34,7 @@ function ReferenceItem({ node, onRemove }: { node: CanvasNodeData; onRemove: () 
     const resource = getNodeDefinition(node.type)?.resource?.(node);
     const content = node.metadata?.content || resource?.url;
     const thumbnail = previewUrlFor(node.metadata?.storageKey) || content;
-    const Icon = resource?.kind === "image" || node.type === CanvasNodeType.Image ? ImageIcon : resource?.kind === "video" || node.type === CanvasNodeType.Video ? Video : resource?.kind === "audio" || node.type === CanvasNodeType.Audio ? Music2 : resource?.kind === "text" || node.type === CanvasNodeType.Text ? FileText : Puzzle;
+    const Icon = resource?.kind === "image" || node.type === CanvasNodeType.Image ? ImageIcon : resource?.kind === "video" || node.type === CanvasNodeType.Video ? Video : resource?.kind === "text" || node.type === CanvasNodeType.Text ? FileText : Puzzle;
     return (
         <Popover placement="topLeft" mouseEnterDelay={0.15} content={<ReferencePreview node={node} content={content} />}>
             <div className="group relative grid size-12 shrink-0 place-items-center rounded-xl border" style={{ background: theme.toolbar.activeBg, borderColor: theme.toolbar.border }}>
@@ -52,6 +52,5 @@ function ReferencePreview({ node, content }: { node: CanvasNodeData; content?: s
     const resource = getNodeDefinition(node.type)?.resource?.(node);
     if ((resource?.kind === "image" || node.type === CanvasNodeType.Image) && content) return <img src={content} alt={node.title} className="max-h-52 w-72 rounded-lg object-contain" />;
     if ((resource?.kind === "video" || node.type === CanvasNodeType.Video) && content) return <video src={content} className="max-h-52 w-72 rounded-lg" muted controls />;
-    if ((resource?.kind === "audio" || node.type === CanvasNodeType.Audio) && content) return <audio src={content} className="w-72" controls />;
     return <div className="max-h-52 w-72 overflow-auto whitespace-pre-wrap text-sm">{resource?.text || node.metadata?.content || node.metadata?.prompt || node.title || t("canvas.references.empty")}</div>;
 }

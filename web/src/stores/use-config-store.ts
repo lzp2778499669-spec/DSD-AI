@@ -4,8 +4,10 @@ import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 
 import i18n from "@/i18n";
+import { createCloudPersistStorage } from "@/lib/supabase-storage";
+import { useGroupStore } from "@/stores/use-group-store";
 
-export type ApiCallFormat = "openai" | "gemini";
+export type ApiCallFormat = "openai" | "openai-chat" | "gemini";
 export type ModelCapability = "image" | "video" | "text";
 export type ReasoningEffort = "auto" | "low" | "medium" | "high" | "xhigh";
 
@@ -20,8 +22,10 @@ export type ModelChannel = {
     name: string;
     baseUrl: string;
     apiKey: string;
+    apiKeyConfigured?: boolean;
     apiFormat: ApiCallFormat;
     models: ChannelModel[];
+    assignedUserId?: string;
 };
 
 export type AiConfig = {
@@ -53,14 +57,8 @@ export type AiConfig = {
     autoFocusOnSelect: boolean;
 };
 
-export type WebdavSyncConfig = {
-    url: string;
-    username: string;
-    password: string;
-    directory: string;
-    lastSyncedAt: string;
-};
-export type ConfigTabKey = "channels" | "local-proxy" | "preferences" | "prompt-sources" | "webdav" | "local-storage";
+export type WebdavSyncConfig = { url: string; username: string; password: string; directory: string; lastSyncedAt: string };
+export type ConfigTabKey = "channels" | "groups" | "user-review" | "local-proxy" | "preferences" | "webdav" | "local-storage";
 
 export type ChannelCredentialsImportResult = {
     status: "created" | "updated" | "missing-base-url" | "invalid-base-url";
@@ -68,8 +66,10 @@ export type ChannelCredentialsImportResult = {
 };
 
 export const CONFIG_STORE_KEY = "infinite-canvas:ai_config_store";
+const configStorage = createCloudPersistStorage<{ config: AiConfig; webdav: WebdavSyncConfig }>("config");
 const CHANNEL_MODEL_SEPARATOR = "::";
 const OPENAI_BASE_URL = "https://api.openai.com";
+const OPENAI_CHAT_BASE_URL = "https://api.deepseek.com";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
 export const LOCAL_PROXY_PACKAGE = "@basketikun/canvas-proxy";
 export const DEFAULT_LOCAL_PROXY_URL = "http://127.0.0.1:23210";
@@ -116,13 +116,7 @@ export const defaultConfig: AiConfig = {
     autoFocusOnSelect: false,
 };
 
-export const defaultWebdavSyncConfig: WebdavSyncConfig = {
-    url: "",
-    username: "",
-    password: "",
-    directory: "infinite-canvas",
-    lastSyncedAt: "",
-};
+export const defaultWebdavSyncConfig: WebdavSyncConfig = { url: "", username: "", password: "", directory: "infinite-canvas", lastSyncedAt: "" };
 
 type ConfigStore = {
     config: AiConfig;
@@ -196,7 +190,7 @@ export function resolveModelScript(config: AiConfig, value: string) {
 
 function isAiConfigReady(config: AiConfig, model: string) {
     const match = findChannelModel(config, model);
-    return Boolean(match && match.channel.baseUrl.trim() && match.channel.apiKey.trim());
+    return Boolean(match && match.channel.baseUrl.trim() && (match.channel.apiKeyConfigured || match.channel.apiKey.trim()));
 }
 
 export const useConfigStore = create<ConfigStore>()(
@@ -220,13 +214,7 @@ export const useConfigStore = create<ConfigStore>()(
                 if (result.config !== currentConfig) set({ config: result.config });
                 return { status: result.status, channelName: result.channelName };
             },
-            updateWebdavConfig: (key, value) =>
-                set((state) => ({
-                    webdav: {
-                        ...state.webdav,
-                        [key]: value,
-                    },
-                })),
+            updateWebdavConfig: (key, value) => set((state) => ({ webdav: { ...state.webdav, [key]: value } })),
             isAiConfigReady: (config, model) => isAiConfigReady(config, model),
             openConfigDialog: (shouldPromptContinue = false, configTab = "channels") => set({ isConfigOpen: true, shouldPromptContinue, configTab }),
             setConfigDialogOpen: (isConfigOpen) => set({ isConfigOpen }),
@@ -234,7 +222,8 @@ export const useConfigStore = create<ConfigStore>()(
         }),
         {
             name: CONFIG_STORE_KEY,
-            partialize: (state) => ({ config: state.config, webdav: state.webdav }),
+            storage: configStorage,
+            partialize: (state) => ({ config: { ...state.config, apiKey: "", channels: state.config.channels.map((channel) => ({ ...channel, apiKey: "", apiKeyConfigured: undefined })) }, webdav: { ...state.webdav, password: "" } }),
             merge: (persisted, current) => {
                 const persistedState = (persisted || {}) as Partial<ConfigStore>;
                 const persistedConfig = (persistedState.config || {}) as Partial<AiConfig>;
@@ -275,7 +264,44 @@ export const useConfigStore = create<ConfigStore>()(
 
 export function useEffectiveConfig() {
     const config = useConfigStore((state) => state.config);
-    return useMemo(() => ({ ...config, channelMode: "local" as const }), [config]);
+    const groupConfig = useGroupStore((state) => state.config);
+    return useMemo(() => {
+        const base = { ...config, channelMode: "local" as const };
+        if (!groupConfig?.channels.length) return base;
+        // 组配置只覆盖 AI 能力相关字段；本地代理和画布交互偏好仍以当前用户设置为准。
+        return {
+            ...base,
+            ...groupConfig,
+            channelMode: "local" as const,
+            proxyEnabled: config.proxyEnabled,
+            proxyUrl: config.proxyUrl,
+            nodeRegenerateBehavior: config.nodeRegenerateBehavior,
+            autoFocusOnSelect: config.autoFocusOnSelect,
+        };
+    }, [config, groupConfig]);
+}
+
+export function withChannels(config: AiConfig, channels: ModelChannel[]): AiConfig {
+    const next: AiConfig = {
+        ...config,
+        channels,
+        models: modelOptionsFromChannels(channels),
+        baseUrl: channels[0]?.baseUrl || config.baseUrl,
+        apiKey: channels[0]?.apiKey || config.apiKey,
+        apiFormat: channels[0]?.apiFormat || config.apiFormat,
+    };
+    return {
+        ...next,
+        imageModel: pickDefaultModel(next, "image", config.imageModel),
+        videoModel: pickDefaultModel(next, "video", config.videoModel),
+        textModel: pickDefaultModel(next, "text", config.textModel),
+    };
+}
+
+export function pickDefaultModel(config: AiConfig, capability: ModelCapability, current: string) {
+    const options = selectableModelsByCapability(config, capability);
+    const normalized = normalizeModelOptionValue(current, config.channels);
+    return options.includes(normalized) ? normalized : options[0] || "";
 }
 
 /** Normalize a mixed list of raw model names or model objects into deduped ChannelModel entries. */
@@ -302,6 +328,7 @@ export function createModelChannel(channel?: Partial<ModelChannel>): ModelChanne
         apiKey: channel?.apiKey || "",
         apiFormat,
         models: normalizeChannelModels(channel?.models),
+        assignedUserId: channel?.assignedUserId?.trim() || undefined,
     };
 }
 
@@ -455,11 +482,12 @@ function normalizeChannels(config: AiConfig) {
 
 export function defaultBaseUrlForApiFormat(apiFormat: ApiCallFormat) {
     if (apiFormat === "gemini") return GEMINI_BASE_URL;
+    if (apiFormat === "openai-chat") return OPENAI_CHAT_BASE_URL;
     return OPENAI_BASE_URL;
 }
 
 function normalizeApiFormat(apiFormat: unknown): ApiCallFormat {
-    return apiFormat === "gemini" ? apiFormat : "openai";
+    return apiFormat === "gemini" || apiFormat === "openai-chat" ? apiFormat : "openai";
 }
 
 function uniqueModelOptions(models: string[]) {
@@ -474,16 +502,12 @@ export function buildApiUrl(baseUrl: string, path: string) {
 }
 
 export function normalizeLocalProxyUrl(value: string) {
-    const trimmed = value.trim().replace(/\/+$/, "");
-    if (!trimmed) return "";
-    return /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
+    const url = value.trim().replace(/\/+$/, "");
+    return url ? (/^https?:\/\//i.test(url) ? url : `http://${url}`) : "";
 }
 
-/** Prefix an outgoing request with the local forwarding proxy so the browser is not blocked by CORS. */
 export function withLocalProxy(url: string) {
-    const { proxyEnabled, proxyUrl } = useConfigStore.getState().config;
-    if (!proxyEnabled || !/^https?:\/\//i.test(url)) return url;
-    const base = normalizeLocalProxyUrl(proxyUrl);
-    if (!base || url.startsWith(`${base}/`)) return url;
-    return `${base}/${url}`;
+    const config = useConfigStore.getState().config;
+    const proxy = config.proxyEnabled ? normalizeLocalProxyUrl(config.proxyUrl) : "";
+    return proxy && /^https?:\/\//i.test(url) ? `${proxy}/${url}` : url;
 }

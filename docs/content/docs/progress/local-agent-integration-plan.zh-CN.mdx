@@ -104,7 +104,7 @@ canvasAgent.exportSnapshot()
 
 建议先支持最小操作集：
 
-- `add_node`：新增图片、文本、音频、视频、生成配置节点。
+- `add_node`：新增图片、文本、视频、生成配置节点。
 - `update_node`：更新节点位置、尺寸、内容和配置。
 - `delete_node`：删除节点。
 - `connect_nodes`：连接两个节点。
@@ -113,7 +113,7 @@ canvasAgent.exportSnapshot()
 
 工具入参应使用画布业务 JSON，不使用模拟鼠标点击或屏幕坐标自动化。
 
-MCP 读取画布状态时默认返回摘要，不直接把完整图片、视频、音频或超长 base64 内容塞给 Agent。
+MCP 读取画布状态时默认返回摘要，不直接把完整图片、视频或超长 base64 内容塞给 Agent。
 
 ## MCP 工具设计
 

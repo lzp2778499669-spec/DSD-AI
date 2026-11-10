@@ -1,8 +1,6 @@
-import PocketBase, { BaseAuthStore } from "pocketbase";
+import { supabase, supabaseEnabled } from "@/services/supabase";
 
-import { AUTH_API_URL } from "@/constant/runtime-config";
-
-export type AccessStatus = "pending" | "approved" | "disabled";
+export type AccessStatus = "待审核" | "已通过" | "未通过";
 
 export type AuthUser = {
     id: string;
@@ -11,115 +9,108 @@ export type AuthUser = {
     accessStatus: AccessStatus;
 };
 
-const SESSION_STORE_KEY = "infinite-canvas:auth-session";
-const PERSISTENT_STORE_KEY = "infinite-canvas:auth-persistent";
-const REMEMBER_SESSION_KEY = "infinite-canvas:remember-session";
-let useSessionStore = typeof window !== "undefined" && sessionStorage.getItem(REMEMBER_SESSION_KEY) === "1";
+// Supabase Auth 只接受邮箱、手机号或第三方登录，没有用户名登录，因此用户名在提交前映射为固定域名的内部邮箱。
+const USERNAME_EMAIL_DOMAIN = "users.infinite-canvas.local";
+const USERNAME_PATTERN = /^[a-z0-9._-]{2,32}$/;
 
-class RememberableAuthStore extends BaseAuthStore {
-    constructor() {
-        super();
-        const serialized = sessionStorage.getItem(SESSION_STORE_KEY) || localStorage.getItem(PERSISTENT_STORE_KEY);
-        if (!serialized) return;
-        try {
-            const state = JSON.parse(serialized) as { token?: string; record?: Record<string, unknown> };
-            super.save(state.token || "", state.record as unknown as import("pocketbase").AuthRecord);
-            useSessionStore = sessionStorage.getItem(REMEMBER_SESSION_KEY) === "1";
-        } catch {
-            sessionStorage.removeItem(SESSION_STORE_KEY);
-            localStorage.removeItem(PERSISTENT_STORE_KEY);
-        }
-    }
-
-    save(token: string, record?: import("pocketbase").AuthRecord) {
-        super.save(token, record);
-        const serialized = JSON.stringify({ token, record });
-        if (useSessionStore) {
-            sessionStorage.setItem(SESSION_STORE_KEY, serialized);
-            localStorage.removeItem(PERSISTENT_STORE_KEY);
-        } else {
-            localStorage.setItem(PERSISTENT_STORE_KEY, serialized);
-            sessionStorage.removeItem(SESSION_STORE_KEY);
-        }
-    }
-
-    clear() {
-        super.clear();
-        sessionStorage.removeItem(SESSION_STORE_KEY);
-        sessionStorage.removeItem(REMEMBER_SESSION_KEY);
-        localStorage.removeItem(PERSISTENT_STORE_KEY);
-    }
+function requireSupabase() {
+    if (!supabaseEnabled) throw new Error("Supabase 尚未配置，请填写项目 URL 和 publishable key");
 }
 
-const client = new PocketBase(AUTH_API_URL, new RememberableAuthStore());
-client.autoCancellation(false);
+function resolveAuthEmail(identifier: string) {
+    const value = identifier.trim().toLowerCase();
+    if (value.includes("@")) return value;
+    if (!USERNAME_PATTERN.test(value)) throw new Error("账号只能包含字母、数字、点、下划线或短横线，长度 2 到 32 位");
+    return `${value}@${USERNAME_EMAIL_DOMAIN}`;
+}
 
-function normalizedUser(record: Record<string, unknown>): AuthUser {
-    return {
-        id: String(record.id || ""),
-        username: String(record.username || ""),
-        email: String(record.email || ""),
-        accessStatus: record.accessStatus === "approved" || record.accessStatus === "disabled" ? record.accessStatus : "pending",
-    };
+function resolveDisplayName(identifier: string) {
+    return identifier.trim().toLowerCase().split("@")[0];
+}
+
+async function loadAccessStatus(userId: string): Promise<AccessStatus> {
+    const { data } = await supabase.from("profiles").select("access_status").eq("id", userId).maybeSingle();
+    const status = data?.access_status;
+    return status === "已通过" || status === "未通过" ? status : "待审核";
+}
+
+function toAuthUser(user: { id: string; email?: string; user_metadata?: Record<string, unknown> }, accessStatus: AccessStatus): AuthUser {
+    return { id: user.id, email: user.email || "", username: String(user.user_metadata?.username || user.email?.split("@")[0] || ""), accessStatus };
+}
+
+async function loadAuthUser(user: { id: string; email?: string; user_metadata?: Record<string, unknown> }) {
+    return toAuthUser(user, await loadAccessStatus(user.id));
 }
 
 export async function registerUser(username: string, password: string) {
-    const normalizedUsername = username.trim();
-    const email = `user-${crypto.randomUUID()}@users.local`;
-    const record = await client.collection("users").create({
-        username: normalizedUsername,
-        email,
-        password,
-        passwordConfirm: password,
-        accessStatus: "pending",
-    });
-    return normalizedUser(record as unknown as Record<string, unknown>);
+    requireSupabase();
+    const email = resolveAuthEmail(username);
+    const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { username: resolveDisplayName(username) } } });
+    if (error) {
+        // 账号可能已创建成功但确认邮件发送失败，此时直接尝试用同一凭据登录，避免用户看到误导性的邮件错误。
+        const { data: retry } = await supabase.auth.signInWithPassword({ email, password });
+        if (retry.user) return loadAuthUser(retry.user);
+        if (/already registered/i.test(error.message)) throw new Error("该账号已被注册，请直接登录");
+        throw error;
+    }
+    if (!data.user) throw new Error("注册未完成");
+    if (data.session) return loadAuthUser(data.user);
+    const { data: login, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
+    if (loginError) throw new Error("账号已创建，但自动登录失败，请直接使用该账号登录");
+    return loadAuthUser(login.user);
 }
 
 export async function loginUser(username: string, password: string) {
-    const auth = await client.collection("users").authWithPassword(username.trim(), password);
-    return normalizedUser(auth.record as unknown as Record<string, unknown>);
+    requireSupabase();
+    const email = resolveAuthEmail(username);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return loadAuthUser(data.user);
 }
+
 
 export async function refreshCurrentUser() {
-    if (!client.authStore.isValid) return null;
-    try {
-        const auth = await client.collection("users").authRefresh();
-        return normalizedUser(auth.record as unknown as Record<string, unknown>);
-    } catch {
-        client.authStore.clear();
-        return null;
-    }
+    if (!supabaseEnabled) return null;
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) return null;
+    return loadAuthUser(user);
 }
 
-export function setRememberSession(remember: boolean) {
-    useSessionStore = !remember;
-    if (remember) {
-        sessionStorage.removeItem("infinite-canvas:remember-session");
-        sessionStorage.removeItem(SESSION_STORE_KEY);
-    } else {
-        sessionStorage.setItem(REMEMBER_SESSION_KEY, "1");
-        localStorage.removeItem(PERSISTENT_STORE_KEY);
-    }
-}
+export function setRememberSession(_remember: boolean) {}
 
-export function currentUser() {
-    const record = client.authStore.record;
-    return client.authStore.isValid && record ? normalizedUser(record as unknown as Record<string, unknown>) : null;
+export async function currentUser() {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.user ? loadAuthUser(data.session.user) : null;
 }
 
 export function onAuthChange(callback: (user: AuthUser | null) => void) {
-    return client.authStore.onChange((_token, record) => callback(record ? normalizedUser(record as unknown as Record<string, unknown>) : null));
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (!session?.user) {
+            callback(null);
+            return;
+        }
+        void loadAuthUser(session.user).then(callback);
+    });
+    return () => data.subscription.unsubscribe();
 }
 
 export function logoutUser() {
-    client.authStore.clear();
+    void supabase.auth.signOut();
 }
 
-export function hasAuthSession() {
-    return client.authStore.isValid;
+export async function hasAuthSession() {
+    if (!supabaseEnabled) return false;
+    const { data } = await supabase.auth.getSession();
+    return Boolean(data.session);
 }
 
-export function getAuthToken() {
-    return client.authStore.token;
+export async function getAuthToken() {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token || "";
+}
+
+export async function getCurrentUserId() {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) throw new Error("请先登录");
+    return user.id;
 }

@@ -94,7 +94,7 @@ test("changing only the key on the same provider preserves the saved model and t
 });
 
 test("unavailable explicit selections are preserved for every generation capability", () => {
-    for (const capability of ["image", "video", "text", "audio"] as ModelCapability[]) {
+    for (const capability of ["image", "video", "text"] as ModelCapability[]) {
         expect(resolveModelForCapability(config, `removed::${capability}`, capability)).toBe(`removed::${capability}`);
     }
 });

@@ -30,8 +30,8 @@ export default function IndexPage() {
                         <p className="text-sm font-medium text-[#a21621]">{brand.name} {brand.product}</p>
                         <h1 className="mt-5 max-w-lg text-4xl font-semibold leading-[1.16] sm:text-5xl lg:text-6xl">{brand.title}</h1>
                         <p className="mt-6 max-w-md text-base leading-8 text-[#343434] sm:text-lg">{t("meta.description")}</p>
-                        <button type="button" onClick={() => navigate("/canvas")} className="mt-9 inline-flex h-12 items-center gap-8 rounded-xl border border-transparent bg-[#1c1c1c] px-6 text-sm font-medium text-white transition hover:bg-[#a21621] active:translate-y-px">
-                            {t("home.openCanvas")}<ArrowRight className="size-4" />
+                        <button type="button" onClick={() => navigate("/canvas")} className="group mt-9 inline-flex h-12 items-center gap-8 rounded-xl border border-white/35 bg-black/25 px-6 text-sm font-medium text-white backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-white/60 hover:bg-black/40 hover:shadow-[0_12px_32px_rgba(0,0,0,0.25)] active:translate-y-0 active:scale-[0.98]">
+                            {t("home.openCanvas")}<ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
                         </button>
                     </div>
                 </div>

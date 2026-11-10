@@ -1,17 +1,17 @@
-import localforage from "localforage";
 import { nanoid } from "nanoid";
 
+import { downloadPrivateFile, removePrivateFiles, uploadPrivateFile } from "@/services/supabase";
+import { getCurrentUserId } from "@/services/api/auth";
 import { withLocalProxy } from "@/stores/use-config-store";
 
 export type UploadedFile = { url: string; storageKey: string; bytes: number; mimeType: string; width?: number; height?: number; durationMs?: number };
 
-const store = localforage.createInstance({ name: "infinite-canvas", storeName: "media_files" });
 const objectUrls = new Map<string, string>();
 
 export async function uploadMediaFile(input: string | Blob, prefix = "file"): Promise<UploadedFile> {
     const blob = typeof input === "string" ? await (await fetch(withLocalProxy(input))).blob() : input;
     const storageKey = `${prefix}:${nanoid()}`;
-    await store.setItem(storageKey, blob);
+    await uploadPrivateFile(`${await getCurrentUserId()}/${storageKey}`, blob);
     const url = URL.createObjectURL(blob);
     objectUrls.set(storageKey, url);
     const meta = blob.type.startsWith("video/") ? await readVideoMeta(url) : {};
@@ -22,7 +22,7 @@ export async function resolveMediaUrl(storageKey?: string, fallback = "") {
     if (!storageKey) return fallback;
     const cached = objectUrls.get(storageKey);
     if (cached) return cached;
-    const blob = await store.getItem<Blob>(storageKey);
+    const blob = await downloadPrivateFile(`${await getCurrentUserId()}/${storageKey}`).catch(() => null);
     if (!blob) return fallback;
     const url = URL.createObjectURL(blob);
     objectUrls.set(storageKey, url);
@@ -30,11 +30,26 @@ export async function resolveMediaUrl(storageKey?: string, fallback = "") {
 }
 
 export async function getMediaBlob(storageKey: string) {
-    return store.getItem<Blob>(storageKey);
+    return downloadPrivateFile(`${await getCurrentUserId()}/${storageKey}`).catch(() => null);
+}
+
+// 组员只读浏览他人画布时，按对方用户目录读取视频等媒体文件。
+const memberObjectUrls = new Map<string, string>();
+
+export async function resolveMemberMediaUrl(userId: string, storageKey?: string, fallback = "") {
+    if (!storageKey) return fallback;
+    const cacheKey = `${userId}/${storageKey}`;
+    const cached = memberObjectUrls.get(cacheKey);
+    if (cached) return cached;
+    const blob = await downloadPrivateFile(cacheKey).catch(() => null);
+    if (!blob) return fallback;
+    const url = URL.createObjectURL(blob);
+    memberObjectUrls.set(cacheKey, url);
+    return url;
 }
 
 export async function setMediaBlob(storageKey: string, blob: Blob) {
-    await store.setItem(storageKey, blob);
+    await uploadPrivateFile(`${await getCurrentUserId()}/${storageKey}`, blob);
     const url = URL.createObjectURL(blob);
     objectUrls.set(storageKey, url);
     return url;
@@ -46,18 +61,14 @@ export async function deleteStoredMedia(keys: Iterable<string>) {
             const url = objectUrls.get(key);
             if (url) URL.revokeObjectURL(url);
             objectUrls.delete(key);
-            await store.removeItem(key);
+            await removePrivateFiles([`${await getCurrentUserId()}/${key}`]);
         }),
     );
 }
 
 export async function cleanupUnusedMedia(usedData: unknown) {
     const usedKeys = collectMediaStorageKeys(usedData);
-    const unused: string[] = [];
-    await store.iterate((_value, key) => {
-        if (!usedKeys.has(key)) unused.push(key);
-    });
-    await Promise.all(unused.map((key) => store.removeItem(key)));
+    void usedKeys;
 }
 
 export function collectMediaStorageKeys(value: unknown, keys = new Set<string>()) {

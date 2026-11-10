@@ -1,21 +1,4 @@
 services:
-  auth:
-    build:
-      context: .
-      dockerfile: pocketbase.Dockerfile
-      args:
-        PB_VERSION: 0.40.6
-    ports:
-      - "127.0.0.1:8090:8090"
-    volumes:
-      - pocketbase_data:/pb_data
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8090/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   app:
     image: infinite-canvas:local
     build:
@@ -24,15 +7,6 @@ services:
     ports:
       - "3000:3000"
     environment:
-      AUTH_API_URL: /
-    depends_on:
-      auth:
-        condition: service_healthy
+      SUPABASE_URL: ${SUPABASE_URL:?Set SUPABASE_URL in the deployment environment}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:?Set SUPABASE_ANON_KEY in the deployment environment}
     restart: unless-stopped
-    # 统计分析（可选，默认关闭）。每家一个独立变量，填了谁就启用谁，可同时启用多家：
-    # environment:
-    #   ANALYTICS_GA4_ID: G-XXXXXXXXXX                    # Google Analytics 4 衡量 ID
-    #   ANALYTICS_BAIDU_ID: xxxxxxxxxxxxxxxxxxxxxxxxxxxx   # 百度统计站点 ID
-
-volumes:
-  pocketbase_data:
