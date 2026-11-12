@@ -1,13 +1,15 @@
-import { Search } from "lucide-react";
+import { Search, Settings2 } from "lucide-react";
 import { type UIEvent, useEffect, useState } from "react";
-import { App, Empty, Input, Spin, Tag } from "antd";
+import { App, Button, Empty, Input, Spin, Tag } from "antd";
 import { useTranslation } from "react-i18next";
 
 import { PromptCard } from "@/components/prompts/prompt-card";
 import { usePromptList } from "@/components/prompts/use-prompt-list";
 import { PromptDetailDialog } from "./components/prompt-detail-dialog";
+import { PromptManagerDrawer } from "./components/prompt-manager-drawer";
 import { useCopyText } from "@/hooks/use-copy-text";
 import { cn } from "@/lib/utils";
+import { checkIsAdmin } from "@/services/api/admin";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { ALL_PROMPTS_OPTION, type Prompt } from "@/services/api/prompts";
 
@@ -18,6 +20,8 @@ export default function PromptsPage() {
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [selectedCategory, setSelectedCategory] = useState(ALL_PROMPTS_OPTION);
     const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [managerOpen, setManagerOpen] = useState(false);
     const addAsset = useAssetStore((state) => state.addAsset);
     const copyText = useCopyText();
     const { query, items: promptItems, tags: promptTags, categories: promptCategoryOptions, total: totalPrompts } = usePromptList({ keyword: titleKeyword, tags: selectedTags, category: selectedCategory });
@@ -25,6 +29,10 @@ export default function PromptsPage() {
     useEffect(() => {
         if (query.isError) message.error(query.error instanceof Error ? query.error.message : t("prompts.loadFailed"));
     }, [message, query.error, query.isError, t]);
+
+    useEffect(() => {
+        void checkIsAdmin().then(setIsAdmin).catch(() => setIsAdmin(false));
+    }, []);
 
     const toggleTag = (tag: string) => {
         if (tag === ALL_PROMPTS_OPTION) return setSelectedTags([]);
@@ -48,6 +56,7 @@ export default function PromptsPage() {
                     <div className="text-center">
                         <h1 className="text-2xl font-semibold text-stone-950 dark:text-stone-100">{t("prompts.title")}</h1>
                         <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">{t("prompts.total", { count: totalPrompts })}</p>
+                        {isAdmin ? <div className="mt-3 flex justify-center"><Button icon={<Settings2 className="size-4" />} onClick={() => setManagerOpen(true)}>{t("prompts.manager.open")}</Button></div> : null}
                     </div>
                     <div className="mt-6 space-y-2.5">
                         <PromptFilter label={t("prompts.category")} options={promptCategoryOptions} selected={selectedCategory} onChange={setSelectedCategory} />
@@ -69,6 +78,7 @@ export default function PromptsPage() {
             </main>
 
             <PromptDetailDialog prompt={selectedPrompt} onClose={() => setSelectedPrompt(null)} onCopy={(prompt) => copyText(prompt, t("common.promptCopied"))} onSaveAsset={savePromptAsset} />
+            <PromptManagerDrawer open={managerOpen} onClose={() => setManagerOpen(false)} />
         </div>
     );
 }

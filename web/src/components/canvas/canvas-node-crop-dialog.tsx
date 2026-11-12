@@ -19,10 +19,10 @@ type ResizeHandle = "n" | "e" | "s" | "w" | "ne" | "nw" | "se" | "sw";
 const handles: ResizeHandle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
 const minSize = 0.06;
 const defaultCrop = { x: 0.12, y: 0.12, width: 0.76, height: 0.76 };
-export function CanvasNodeCropDialog({ dataUrl, open, onClose, onConfirm }: { dataUrl: string; open: boolean; onClose: () => void; onConfirm: (crop: CanvasImageCropRect) => void }) {
+export function CanvasNodeCropDialog({ dataUrl, open, onClose, onConfirm, initialRatioPreset = "free", zIndex }: { dataUrl: string; open: boolean; onClose: () => void; onConfirm: (crop: CanvasImageCropRect) => void; initialRatioPreset?: string; zIndex?: number }) {
     const { t } = useTranslation();
     const [crop, setCrop] = useState<CanvasImageCropRect>(defaultCrop);
-    const [ratioPreset, setRatioPreset] = useState("free");
+    const [ratioPreset, setRatioPreset] = useState(initialRatioPreset);
     const [fixedRatio, setFixedRatio] = useState<number | null>(null);
     const [image, setImage] = useState<{ width: number; height: number } | null>(null);
     const dragAbortRef = useRef<AbortController | null>(null);
@@ -33,15 +33,19 @@ export function CanvasNodeCropDialog({ dataUrl, open, onClose, onConfirm }: { da
     useEffect(() => {
         if (open) {
             setCrop(defaultCrop);
-            setRatioPreset("free");
+            setRatioPreset(initialRatioPreset);
             setFixedRatio(null);
         }
-    }, [dataUrl, open]);
+    }, [dataUrl, open, initialRatioPreset]);
 
     useEffect(() => {
         if (!open) return;
-        void readImageMeta(dataUrl).then(setImage);
-    }, [dataUrl, open]);
+        void readImageMeta(dataUrl).then((meta) => {
+            setImage(meta);
+            const ratio = resolveRatio(initialRatioPreset, meta, null);
+            if (ratio) setCrop((current) => fitCropToRatio(current, ratio, meta));
+        });
+    }, [dataUrl, open, initialRatioPreset]);
 
     useEffect(() => {
         if (!open) dragAbortRef.current?.abort();
@@ -69,7 +73,7 @@ export function CanvasNodeCropDialog({ dataUrl, open, onClose, onConfirm }: { da
     };
 
     return (
-        <Modal title={t("canvas.editors.cropTitle")} open={open && Boolean(dataUrl)} onCancel={onClose} footer={null} width={780} centered destroyOnHidden transitionName="" maskTransitionName="">
+        <Modal title={t("canvas.editors.cropTitle")} open={open && Boolean(dataUrl)} onCancel={onClose} footer={null} width={780} centered zIndex={zIndex} destroyOnHidden transitionName="" maskTransitionName="">
             <div className="space-y-4">
                 <div
                     ref={viewport.viewportRef}

@@ -1,4 +1,5 @@
 import { supabase, supabaseEnabled } from "@/services/supabase";
+import i18n from "@/i18n";
 
 export type AccessStatus = "待审核" | "已通过" | "未通过";
 
@@ -113,4 +114,53 @@ export async function getCurrentUserId() {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) throw new Error("请先登录");
     return user.id;
+}
+
+export type PasswordResetStatus = "待确认" | "已确认" | "已使用" | "已拒绝";
+
+export type PasswordResetRequest = {
+    id: string;
+    username: string;
+    created_at: string;
+};
+
+export async function requestPasswordReset(username: string, secret: string) {
+    requireSupabase();
+    const { data, error } = await supabase.rpc("request_password_reset", { p_username: username, p_secret: secret });
+    if (error) {
+        if (/account not found/i.test(error.message)) throw new Error(i18n.t("auth.accountNotFound"));
+        throw error;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row?.request_id) throw new Error(i18n.t("auth.resetRequestFailed"));
+    return { requestId: row.request_id as string, status: row.request_status as PasswordResetStatus };
+}
+
+export async function getPasswordResetStatus(requestId: string, secret: string) {
+    const { data, error } = await supabase.rpc("get_password_reset_status", { p_request_id: requestId, p_secret: secret });
+    if (error) {
+        if (/invalid reset request/i.test(error.message)) throw new Error(i18n.t("auth.resetInvalid"));
+        throw error;
+    }
+    return data as PasswordResetStatus;
+}
+
+export async function completePasswordReset(requestId: string, secret: string, newPassword: string) {
+    const { error } = await supabase.rpc("complete_password_reset", { p_request_id: requestId, p_secret: secret, p_new_password: newPassword });
+    if (error) {
+        if (/password too short/i.test(error.message)) throw new Error(i18n.t("auth.passwordTooShort"));
+        if (/reset request is not approved/i.test(error.message)) throw new Error(i18n.t("auth.resetNotApproved"));
+        throw error;
+    }
+}
+
+export async function listPasswordResetRequests(): Promise<PasswordResetRequest[]> {
+    const { data, error } = await supabase.rpc("list_password_reset_requests");
+    if (error) throw error;
+    return (data || []) as PasswordResetRequest[];
+}
+
+export async function reviewPasswordReset(id: string, approve: boolean) {
+    const { error } = await supabase.rpc("review_password_reset", { p_request_id: id, p_approve: approve });
+    if (error) throw error;
 }
