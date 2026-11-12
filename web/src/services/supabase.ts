@@ -7,7 +7,7 @@ export const supabase = createClient(SUPABASE_URL || "https://missing-project.su
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
 });
 
-export type CloudDomain = "account" | "canvas" | "assets" | "config" | "image-workbench" | "video-workbench" | "prompt-sources";
+export type CloudDomain = "account" | "canvas" | "assets" | "config" | "image-workbench" | "video-workbench";
 
 const boundUsers = new Map<CloudDomain, string>();
 

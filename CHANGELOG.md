@@ -3,6 +3,8 @@
 ## Unreleased
 
 + [修复] 修复文档站 Docker 镜像缺少 `index.zh-CN.md` 导致中文文档首页和中文 llms 索引 500 的问题。
++ [删除] 移除提示词来源功能的全部死代码（来源运行时与缓存、配置页来源界面、定时拉取 hook），配置导入导出不再包含提示词来源；同时清理遗留的 `web/pnpm-lock.yaml`。
++ [修复] 文档站未知语言路径返回 404 而不是 500，运行时读取的文档索引和 CHANGELOG 文件纳入构建产物追踪。
 + [删除] 移除遗留的 `docker-compose.local.yml`（PocketBase 认证服务已被 Supabase 取代，且其引用的 `pocketbase.Dockerfile` 已不存在），部署统一使用 `docker-compose.yml`。
 + [调整] 文档站内容与当前 Supabase 架构对齐：功能介绍、快速开始、Docker 部署、提示词来源、本地开发、画布快捷键和文档索引改为账号云同步、Supabase 提示词表、三种接口格式、本地代理和五类节点的描述，移除 PocketBase 等过时内容。
 

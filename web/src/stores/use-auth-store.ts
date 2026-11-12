@@ -5,7 +5,6 @@ import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { useAssetStore } from "@/stores/use-asset-store";
 import { useConfigStore } from "@/stores/use-config-store";
 import { useGroupStore } from "@/stores/use-group-store";
-import { usePromptSourceStore } from "@/stores/use-prompt-source-store";
 import { unbindCloudDomains } from "@/services/supabase";
 
 type AuthStore = {
@@ -84,13 +83,12 @@ function clearUserStores() {
     unbindCloudDomains();
     useCanvasStore.setState({ projects: [], deletedProjects: [], hydrated: true });
     useAssetStore.setState({ assets: [], hydrated: true });
-    usePromptSourceStore.setState({ sources: [], schedule: { intervalMinutes: 30, lastFetchedAt: "" } });
     useConfigStore.setState({ config: { ...useConfigStore.getState().config, apiKey: "", channels: [] } });
     useGroupStore.getState().clear();
 }
 
 function rehydrateUserStores() {
-    void Promise.all([useCanvasStore.persist.rehydrate(), useAssetStore.persist.rehydrate(), usePromptSourceStore.persist.rehydrate(), useConfigStore.persist.rehydrate()]);
+    void Promise.all([useCanvasStore.persist.rehydrate(), useAssetStore.persist.rehydrate(), useConfigStore.persist.rehydrate()]);
 }
 
 function refreshGroups() {
