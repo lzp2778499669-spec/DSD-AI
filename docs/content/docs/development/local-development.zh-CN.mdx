@@ -5,7 +5,18 @@ description: 前端优先的本地开发方式
 
 # 本地开发
 
-当前主应用以 `web/` 前端为主，AI 请求由浏览器前台直连用户自己的 OpenAI 兼容接口。
+当前主应用以 `web/` 前端为主。账号、画布、素材和配置通过 Supabase 云端持久化，AI 请求由浏览器前台直连用户配置的接口，被 CORS 拦截时可开启本地转发代理。
+
+## 0. 准备 Supabase
+
+在 `web/` 下创建 `.env.local`（参考 `web/.env.example`），否则无法注册登录，配置也无法保存：
+
+```text
+VITE_SUPABASE_URL=<你的 Supabase Project URL>
+VITE_SUPABASE_ANON_KEY=<你的 Supabase anon key>
+```
+
+迁移应用与 Edge Function 部署步骤见[快速开始](/zh-CN/docs/overview/quick-start)。
 
 ## 1. 启动前端
 
@@ -23,7 +34,7 @@ http://localhost:3000
 
 ## 2. 配置模型
 
-打开右上角配置弹窗，填写自己的 `Base URL`、`API Key` 和模型名。第三方提示词和 WebDAV 都由浏览器前端直连。
+打开配置页（`/config`），填写自己的渠道 `Base URL`、`API Key` 和模型名。API Key 由 `channel-secrets` Edge Function 加密保存。第三方提示词和 WebDAV 都由浏览器前端直连。
 
 ## 3. 启动文档站
 
@@ -36,5 +47,6 @@ bun run dev
 ## 常见场景
 
 - 改画布、页面和交互：主要看 `web/`
-- 改提示词缓存：主要看 `web/src/services/api/prompts.ts`
+- 改提示词数据与公共表访问：主要看 `web/src/services/api/prompts.ts`
+- 改云端持久化：主要看 `web/src/lib/supabase-storage.ts` 和 `web/src/services/supabase.ts`
 - 改文档站内容：主要看 `docs/content/docs/`

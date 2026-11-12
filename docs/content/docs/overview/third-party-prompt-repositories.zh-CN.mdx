@@ -1,20 +1,22 @@
 ---
-title: 第三方提示词来源
-description: 当前内置的 7 个第三方提示词来源
+title: 提示词来源
+description: 提示词库的数据来源与管理方式
 ---
 
-# 第三方提示词来源
+# 提示词来源
 
-应用内置以下 7 个来源。提示词数据统一从 [Image Prompts](https://github.com/yukkcat/image-prompts) 的标准 JSON 读取，原项目地址用于查看来源内容。
+提示词库的数据来自两部分：
 
-| 来源 | 原项目 |
-| --- | --- |
-| Banana Prompt Quicker | https://glidea.github.io/banana-prompt-quicker/ |
-| DavidWu GPT Image 2 | https://github.com/davidwuw0811-boop/awesome-gpt-image2-prompts |
-| Freestylefly GPT Image 2 | https://github.com/freestylefly/awesome-gpt-image-2 |
-| Awesome GPT Image | https://github.com/ZeroLu/awesome-gpt-image |
-| Awesome GPT-4o | https://github.com/ImgEdify/Awesome-GPT4o-Image-Prompts |
-| YouMind GPT Image 2 | https://github.com/YouMind-OpenLab/awesome-gpt-image-2 |
-| YouMind Nano Banana Pro | https://github.com/YouMind-OpenLab/awesome-nano-banana-pro-prompts |
+## Supabase 公共提示词表
 
-每个内置来源都可独立启用和拉取。配置页还支持添加自定义标准 JSON 来源，以及按周期批量更新；拉取失败时继续使用该来源上一次成功缓存。
+提示词主来源是 Supabase 的 `public.prompts` 表，由迁移 `202611100001_managed_prompts.sql` 和 `202611100002_prompt_admin.sql` 建立。登录用户可以浏览、搜索、按分类和标签筛选、复制提示词并加入素材或画布。
+
+管理员在提示词库页可以直接管理：
+
+- 新增、编辑、删除提示词。
+- 选择已有分类 / 标签，或输入新值；删除分类或标签会从所有提示词中移除对应值。
+- 上传并裁剪封面，封面保存在 `prompt-covers` 存储桶并通过公开 URL 显示。
+
+## 历史来源
+
+项目早期内置的 7 个第三方来源（来自 [Image Prompts](https://github.com/yukkcat/image-prompts) 等仓库）和自定义标准 JSON 来源功能均已移除，提示词库现在只读取 Supabase 公共表。

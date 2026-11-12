@@ -120,7 +120,7 @@
 - Codex App 插件：提供 Codex app 插件，安装后会自动注册 MCP 并尝试拉起本地 Agent。
 - 插件系统：支持通过 URL 动态安装 / 启用 / 更新 / 卸载远程节点插件，并提供 TypeScript SDK 自行开发画布节点插件。
 - 自定义接口调用：可自定义生图 / 视频接口的调用方式，灵活适配各类中转站与自建服务。
-- 提示词库：内置 7 个开源提示词来源并支持自定义标准 JSON 来源，由浏览器前端直连并缓存到 IndexedDB。
+- 提示词库：提示词统一存放在 Supabase 公共表，登录用户可浏览、搜索、复制并加入资产；管理员可在应用内新增、编辑、删除提示词并上传封面。
 
 完整功能说明见 [功能介绍](docs/content/docs/overview/features.mdx)。
 
@@ -128,7 +128,7 @@
 
 ## 快速开始
 
-AI API Key、Base URL、画布、素材和生成记录默认保存在浏览器本地。
+画布项目、素材、生成偏好和渠道 API Key 随登录账号同步到 Supabase。
 
 ### 本地开发
 
@@ -145,18 +145,12 @@ bun run dev
 ```bash
 git clone git@github.com:basketikun/infinite-canvas.git
 cd infinite-canvas
-docker compose up -d
+SUPABASE_URL=<你的 Supabase Project URL> \
+SUPABASE_ANON_KEY=<你的 Supabase anon key> \
+docker compose up -d --build
 ```
 
-运行后默认端口3000，可访问 `http://localhost:3000`。
-
-当前项目分支的本地开发部署还包含 PocketBase 账号审核服务，请使用本地构建配置启动：
-
-```bash
-docker compose -f docker-compose.local.yml up -d --build
-```
-
-首次启动后先访问 `http://localhost:8090/_/` 创建管理员账号。进入 `users` 集合，将新注册用户的 `accessStatus` 改为 `approved` 后，用户才可以进入画布、提示词库、资产和配置页面。账号数据库保存在 Docker 卷 `pocketbase_data` 中。
+运行后默认端口3000，可访问 `http://localhost:3000`。账号认证与云端存储依赖 Supabase，配置步骤见[快速开始](https://github.com/basketikun/infinite-canvas/blob/main/docs/index.zh-CN.md)。
 
 首次打开后进入右上角配置，填入自己的 OpenAI 兼容 `Base URL` 和 `API Key`。
 

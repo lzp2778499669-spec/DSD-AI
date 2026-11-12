@@ -6,7 +6,8 @@
 - [Features](/docs/overview/features)
 - [Deploy on Render](/docs/overview/render)
 - [Docker Deployment](/docs/overview/docker)
-- [Third-party Prompt Sources](/docs/overview/third-party-prompt-repositories)
+- [Prompt Sources](/docs/overview/third-party-prompt-repositories)
+- [Codex App Plugin](/docs/overview/codex-app-plugin)
 
 ## Canvas Guide
 
@@ -37,5 +38,5 @@
 
 ## Notes
 
-- Canvas projects and My Assets are primarily stored in the browser. WebDAV can be configured for cross-device synchronization.
-- The AI API key is stored in the browser, which sends requests directly to OpenAI-compatible endpoints.
+- Accounts, canvas projects, assets, preferences, and provider API keys are managed through Supabase; canvas data syncs to Supabase with the signed-in account, and WebDAV remains an optional extra export channel.
+- AI requests are sent directly from the browser to user-configured endpoints; a local forwarding proxy is available when CORS blocks them.

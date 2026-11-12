@@ -17,6 +17,7 @@ ENV PORT=3000
 RUN groupadd --system --gid 1001 nodejs && useradd --system --uid 1001 --gid nodejs nextjs
 COPY --from=docs-build --chown=nextjs:nodejs /app/public ./public
 COPY --from=docs-build --chown=nextjs:nodejs /app/index.md ./index.md
+COPY --from=docs-build --chown=nextjs:nodejs /app/index.zh-CN.md ./index.zh-CN.md
 COPY --from=docs-build --chown=nextjs:nodejs /app/content ./content
 COPY --from=docs-build --chown=nextjs:nodejs /app/.source ./.source
 COPY --from=docs-build --chown=nextjs:nodejs /app/source.config.ts ./source.config.ts

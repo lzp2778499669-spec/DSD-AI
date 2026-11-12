@@ -1,39 +1,54 @@
 ---
 title: Docker 部署
-description: 使用 Docker Compose 部署无限画布
+description: 使用 Docker 部署无限画布
 ---
 
 # Docker 部署
 
-如果你希望在自己的机器或服务器上运行项目，可以直接使用 Docker Compose。
+如果你希望在自己的机器或服务器上运行项目，可以使用 Docker。主应用镜像是 nginx 提供的 Vite 静态前端，启动时通过环境变量生成运行期配置。
 
-## 使用发布镜像
+## 部署步骤
 
 ```bash
 git clone git@github.com:basketikun/infinite-canvas.git
 cd infinite-canvas
-docker compose up -d
+SUPABASE_URL=<你的 Supabase Project URL> \
+SUPABASE_ANON_KEY=<你的 Supabase anon key> \
+docker compose up -d --build
 ```
 
-启动后访问：
+`docker-compose.yml` 会从当前源码构建本地镜像 `infinite-canvas:local`，并要求必须设置 `SUPABASE_URL` 和 `SUPABASE_ANON_KEY`（缺失时启动会直接报错）。启动后访问 `http://localhost:3000`。
 
-```text
-http://localhost:3000
-```
-
-## 本地构建镜像
-
-如果需要基于当前源码构建镜像：
+也可以先单独构建再用 `docker run` 启动：
 
 ```bash
-docker compose -f docker-compose.local.yml up -d --build
+docker build -t infinite-canvas .
+docker run -d -p 3000:3000 \
+  -e SUPABASE_URL=<你的 Supabase Project URL> \
+  -e SUPABASE_ANON_KEY=<你的 Supabase anon key> \
+  infinite-canvas
 ```
+
+## 运行期环境变量
+
+容器入口脚本会根据环境变量生成运行期配置，无需重新构建镜像：
+
+| 变量 | 必填 | 说明 |
+| --- | --- | --- |
+| `SUPABASE_URL` | 是 | Supabase Project URL |
+| `SUPABASE_ANON_KEY` | 是 | Supabase anon key（publishable key） |
+| `ANALYTICS_GA4_ID` | 否 | Google Analytics 4 衡量 ID（`G-XXXX`） |
+| `ANALYTICS_BAIDU_ID` | 否 | 百度统计站点 ID（`hm.js?` 后面那串 hash） |
+
+Supabase 迁移与 Edge Function 部署见[快速开始](/zh-CN/docs/overview/quick-start)。
+
+## 数据说明
+
+画布项目、我的素材、生成偏好和渠道 API Key 随登录账号保存在 Supabase（`user_state` 表和 Storage 用户目录），主应用容器本身无状态，不需要挂载数据目录。
 
 ## 文档站镜像
 
 文档站位于 `docs/` 目录，按带服务端能力的 Next.js standalone 应用单独构建，不打进主应用镜像。
-
-使用发布镜像：
 
 ```bash
 cd docs
@@ -47,42 +62,20 @@ cd docs
 docker compose -f docker-compose.local.yml up -d --build
 ```
 
-## 数据说明
-
-当前主应用镜像只启动 Next.js。画布、我的素材、生成记录和 AI API Key 默认保存在浏览器本地；第三方提示词由浏览器前端直连拉取，不需要额外挂载数据目录。
-
 ## 统计分析（可选）
 
-项目**默认不接入任何统计**：不设置下列环境变量时，页面不会加载任何统计脚本，也不会发送任何外部请求。你在自己的部署上想查看流量时，设置对应环境变量即可，无需修改代码或重新构建镜像——镜像启动时会据此生成运行期配置。
-
-统计按「每家一个独立变量」配置：**填了谁就启用谁，可同时启用多家**（例如 GA4 + 百度一起开）。仅支持 GA4 与百度，两者都只接受 ID，脚本地址由代码固定拼接，不接受任意脚本地址或内联 JS。
-
-| 变量 | 说明 |
-| --- | --- |
-| `ANALYTICS_GA4_ID` | Google Analytics 4 衡量 ID（`G-XXXX`） |
-| `ANALYTICS_BAIDU_ID` | 百度统计站点 ID（`hm.js?` 后面那串 hash） |
-
-在 `docker-compose.yml` 的 `environment` 中配置（文件内已附注释示例），下例同时启用 GA4 与百度：
+项目**默认不接入任何统计**：不设置 `ANALYTICS_GA4_ID` / `ANALYTICS_BAIDU_ID` 时，页面不会加载任何统计脚本，也不会发送任何外部请求。统计按「每家一个独立变量」配置：填了谁就启用谁，可同时启用多家。仅支持 GA4 与百度，两者都只接受 ID，脚本地址由代码固定拼接。
 
 ```yaml
 services:
   app:
-    image: ghcr.io/basketikun/infinite-canvas:latest
-    ports:
-      - "3000:3000"
+    # ... 同上 SUPABASE 配置 ...
     environment:
       ANALYTICS_GA4_ID: G-XXXXXXXXXX
       ANALYTICS_BAIDU_ID: e8263761cc5c32f5f7a855b8203b965a
 ```
 
-或使用 `docker run`：
-
-```bash
-docker run -d -p 3000:3000 \
-  -e ANALYTICS_GA4_ID=G-XXXXXXXXXX \
-  -e ANALYTICS_BAIDU_ID=e8263761cc5c32f5f7a855b8203b965a \
-  ghcr.io/basketikun/infinite-canvas:latest
-```
+或使用 `docker run` 追加 `-e ANALYTICS_GA4_ID=...` 即可。
 
 单页应用的路由切换会自动向所有已启用的统计上报 pageview。
 

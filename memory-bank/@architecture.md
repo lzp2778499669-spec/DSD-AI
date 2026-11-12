@@ -13,8 +13,9 @@
 
 - 前端：Vite 7 + React + React Router + TypeScript + Ant Design + Tailwind + Zustand
 - 运行时 / 包管理：bun（本机版本 1.4.4）
-- 本地持久化：业务数据用 `localforage`；`localStorage` 只用于极小配置
-- 后端：无独立后端，浏览器前端直连第三方 AI 接口
+- 本地持久化：画布、素材、配置随账号同步到 Supabase（`user_state` + Storage 用户目录）；本地只剩极小的 UI 偏好配置
+- 账号体系：Supabase 认证 + 管理员审核（`profiles.access_status`）；API Key 由 `channel-secrets` Edge Function 加密存储
+- 后端：无独立后端，浏览器前端直连第三方 AI 接口；被 CORS 拦截时可开启本地代理 `canvas-proxy`（默认 `http://127.0.0.1:23210`）
 - 语言：纯 JavaScript / TypeScript（全项目 0 个 .py 文件，无 Python）
 
 ## 目录结构
@@ -41,4 +42,4 @@
 
 - 网页（浏览器）→ 直连第三方 AI 接口
 - 被 CORS 拦截时 → 请求先发到本机 `canvas-proxy` → 由代理转发到目标地址
-- 账户 / 积分 / 会员默认存浏览器本地（不配置 `VITE_ACCOUNT_API_URL` 时）；配置后改为请求线上接口
+- 画布、素材、配置随登录账号同步到 Supabase（`user_state` 表 + Storage 用户目录）；渠道 API Key 经 `channel-secrets` Edge Function 加密存取，浏览器不落明文

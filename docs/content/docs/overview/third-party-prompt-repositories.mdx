@@ -1,20 +1,22 @@
 ---
-title: Third-party Prompt Sources
-description: The seven third-party prompt sources built into the application
+title: Prompt Sources
+description: Where prompt library data comes from and how it is managed
 ---
 
-# Third-party Prompt Sources
+# Prompt Sources
 
-The application includes the following seven sources. Prompt data is read as standard JSON from the [Image Prompts](https://github.com/yukkcat/image-prompts) registry; the original project links identify the upstream content.
+Prompt library data comes from two parts:
 
-| Source | Original project |
-| --- | --- |
-| Banana Prompt Quicker | https://glidea.github.io/banana-prompt-quicker/ |
-| DavidWu GPT Image 2 | https://github.com/davidwuw0811-boop/awesome-gpt-image2-prompts |
-| Freestylefly GPT Image 2 | https://github.com/freestylefly/awesome-gpt-image-2 |
-| Awesome GPT Image | https://github.com/ZeroLu/awesome-gpt-image |
-| Awesome GPT-4o | https://github.com/ImgEdify/Awesome-GPT4o-Image-Prompts |
-| YouMind GPT Image 2 | https://github.com/YouMind-OpenLab/awesome-gpt-image-2 |
-| YouMind Nano Banana Pro | https://github.com/YouMind-OpenLab/awesome-nano-banana-pro-prompts |
+## Supabase managed prompts
 
-Each built-in source can be enabled and refreshed independently. Settings also supports custom standard JSON sources and scheduled bulk refreshes; a failed refresh keeps the source's last successful cache available.
+The primary source is the Supabase `public.prompts` table, created by migrations `202611100001_managed_prompts.sql` and `202611100002_prompt_admin.sql`. Signed-in users can browse, search, filter by category and tag, copy prompts, and add them to assets or the canvas.
+
+Administrators manage prompts directly in the prompt library page:
+
+- Create, edit, and delete prompts.
+- Pick existing categories/tags or enter new ones; deleting a category or tag removes it from all prompts.
+- Upload and crop covers; covers are stored in the `prompt-covers` bucket and served via public URLs.
+
+## Historical sources
+
+The seven third-party sources originally built into the application (from the [Image Prompts](https://github.com/yukkcat/image-prompts) registry and related repositories) and the custom standard JSON source feature have both been removed; the prompt library now reads only from the Supabase managed table.

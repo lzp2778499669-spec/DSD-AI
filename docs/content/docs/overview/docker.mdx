@@ -1,27 +1,50 @@
 ---
 title: Docker Deployment
-description: Deploy Infinite Canvas with Docker Compose
+description: Deploy Infinite Canvas with Docker
 ---
 
 # Docker Deployment
 
-## Use the published image
+The main application image is a Vite static frontend served by nginx; runtime configuration is generated from environment variables at container startup.
+
+## Deployment
 
 ```bash
 git clone git@github.com:basketikun/infinite-canvas.git
 cd infinite-canvas
-docker compose up -d
+SUPABASE_URL=<your Supabase Project URL> \
+SUPABASE_ANON_KEY=<your Supabase anon key> \
+docker compose up -d --build
 ```
 
-Open `http://localhost:3000`.
+`docker-compose.yml` builds the local image `infinite-canvas:local` from the current source and requires `SUPABASE_URL` and `SUPABASE_ANON_KEY` (startup fails without them). Open `http://localhost:3000`.
 
-## Build locally
+Alternatively build the image yourself and run it directly:
 
 ```bash
-docker compose -f docker-compose.local.yml up -d --build
+docker build -t infinite-canvas .
+docker run -d -p 3000:3000 \
+  -e SUPABASE_URL=<your Supabase Project URL> \
+  -e SUPABASE_ANON_KEY=<your Supabase anon key> \
+  infinite-canvas
 ```
 
-The application uses PocketBase for account registration and administrator approval. On first start, open `http://localhost:8090/_/` and create the PocketBase superuser. New registrations remain `pending` until an administrator changes `accessStatus` to `approved` in the `users` collection. The database persists in the `pocketbase_data` Docker volume; back it up before changing or removing volumes. The PocketBase host port is bound to loopback for local administration. Production deployments still need HTTPS and an access policy for the admin dashboard.
+## Runtime environment variables
+
+The container entrypoint generates runtime configuration from these variables, so no image rebuild is needed:
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `SUPABASE_URL` | Yes | Supabase Project URL |
+| `SUPABASE_ANON_KEY` | Yes | Supabase anon key (publishable key) |
+| `ANALYTICS_GA4_ID` | No | Google Analytics 4 measurement ID (`G-XXXX`) |
+| `ANALYTICS_BAIDU_ID` | No | Baidu site ID, the hash after `hm.js?` |
+
+For Supabase migrations and Edge Function deployment, see [Quick Start](/docs/overview/quick-start).
+
+## Data
+
+Canvas projects, assets, preferences, and provider API keys are stored in Supabase per account (the `user_state` table and per-user Storage directories). The application container itself is stateless and needs no data volume.
 
 ## Documentation image
 
@@ -39,26 +62,19 @@ cd docs
 docker compose -f docker-compose.local.yml up -d --build
 ```
 
-The app container serves the static Vite frontend. PocketBase stores user accounts in the persistent `pocketbase_data` volume; canvas projects, My Assets, generation history, and AI API keys remain in each user's browser by default. Prompt repositories are fetched directly by the frontend.
-
 ## Optional analytics
 
-No analytics are enabled by default. A deployment can enable GA4, Baidu Analytics, or both at runtime:
-
-| Variable | Description |
-| --- | --- |
-| `ANALYTICS_GA4_ID` | Google Analytics 4 measurement ID (`G-XXXX`) |
-| `ANALYTICS_BAIDU_ID` | Baidu site ID, the hash after `hm.js?` |
+No analytics are enabled by default: without `ANALYTICS_GA4_ID` / `ANALYTICS_BAIDU_ID` the pages load no tracking scripts and send no external requests. Each provider has its own variable and they can be enabled together. Only GA4 and Baidu Analytics are supported; both accept only IDs, and script URLs are fixed by the code.
 
 ```yaml
 services:
   app:
-    image: ghcr.io/basketikun/infinite-canvas:latest
-    ports:
-      - "3000:3000"
+    # ... same SUPABASE configuration as above ...
     environment:
       ANALYTICS_GA4_ID: G-XXXXXXXXXX
       ANALYTICS_BAIDU_ID: e8263761cc5c32f5f7a855b8203b965a
 ```
+
+Or add `-e ANALYTICS_GA4_ID=...` to `docker run`.
 
 SPA route changes automatically report page views to enabled providers. Only configure analytics IDs on sites you control, and do not commit them to the repository.

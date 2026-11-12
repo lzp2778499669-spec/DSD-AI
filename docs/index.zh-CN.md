@@ -6,7 +6,8 @@
 - [功能介绍](/zh-CN/docs/overview/features)
 - [Render 部署](/zh-CN/docs/overview/render)
 - [Docker 部署](/zh-CN/docs/overview/docker)
-- [第三方提示词来源](/zh-CN/docs/overview/third-party-prompt-repositories)
+- [提示词来源](/zh-CN/docs/overview/third-party-prompt-repositories)
+- [Codex App 插件](/zh-CN/docs/overview/codex-app-plugin)
 
 ## 操作手册
 
@@ -36,8 +37,8 @@
 
 ## 说明
 
-- 当前画布项目和“我的素材”主要保存在浏览器本地，跨设备可自行配置 WebDAV 同步。
-- AI API Key 保存在浏览器本地，并由前端直接请求 OpenAI 兼容接口。
+- 账号、画布、素材、偏好和渠道 API Key 均通过 Supabase 管理；画布数据随登录账号同步到 Supabase，WebDAV 仍是可选的额外导出渠道。
+- AI 请求由浏览器直连用户配置的接口；被 CORS 拦截时可开启本地转发代理。
 
 ## 原理说明
 

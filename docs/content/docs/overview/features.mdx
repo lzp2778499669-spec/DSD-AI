@@ -5,10 +5,18 @@ description: Major features available in the current project
 
 # Features
 
+## Accounts and security
+
+- Supabase-based accounts: sign-up, sign-in, and session management through `supabase.auth`; registration only asks for a username and password, and the system generates an internal email used solely for authentication.
+- New users start in a pending state and only see a review notice after signing in; an administrator approves or disables accounts in the config page before protected pages such as the canvas, prompt library, assets, and settings become accessible.
+- Password recovery: after a user submits a recovery request the dialog locks until resolved; when an administrator confirms, the old password is invalidated immediately and other sessions are signed out, and the user sets a new password before signing in again.
+- Provider API keys are stored encrypted in Supabase via the `channel-secrets` Edge Function; the browser only keeps an "API key configured" flag, never the plaintext key.
+- Canvas projects, assets, generation preferences, and channel settings sync to Supabase (`user_state`) with the signed-in account, and canvas images are stored per user in Supabase Storage.
+
 ## Canvas projects
 
 - Create, rename, duplicate, delete, import, and export canvas projects.
-- Persist projects in the browser and optionally synchronize them with WebDAV.
+- Canvas projects sync automatically with the signed-in account; WebDAV is available as an additional export channel.
 - Keep viewport, background, nodes, connections, and assistant sessions with each project.
 
 ## Infinite canvas
@@ -19,18 +27,28 @@ description: Major features available in the current project
 
 ## Nodes and workflows
 
-- Text, image, video, and generation-configuration nodes.
+- Text, image, video, generation-configuration, and group nodes.
 - Connect text prompts and reference media to generation nodes.
-- Generate or rewrite text, create images, edit images from references, and create videos.
+- Generate or rewrite text, create images, edit images from references, create videos, and capture video frames as image nodes.
+- Group nodes collect multiple nodes and feed every resource inside them to a generation node through a single connection.
 - Preserve original image ratios by default and organize batch results as connected nodes.
 - Record prompts, models, dimensions, quality, and references on generated nodes for retries.
 
 ## AI generation
 
-- Connect to user-provided OpenAI-compatible endpoints directly from the browser.
+- Connect to user-provided endpoints directly from the browser, with an optional local forwarding proxy (`npx @basketikun/canvas-proxy@latest`, default `http://127.0.0.1:23210`).
+- Support OpenAI format (`/v1/images/generations`, `/v1/images/edits`, `/v1/responses`), OpenAI Chat format (`/v1/chat/completions`), and Gemini format (`generateContent` for images and text, `predictLongRunning` for videos).
+- Support OpenAI-style video endpoints with first/last-frame and general-reference modes, plus Gemini video task polling and resume.
 - Configure multiple channels, fetch or enter model names, and choose default text, image, and video models.
-- Support image count, aspect ratio, quality, transparent backgrounds, reasoning effort, and custom invocation scripts.
-- Support OpenAI-style video endpoints.
+- Support image count, aspect ratio, quality, resolution presets, transparent backgrounds, reasoning effort, and custom invocation scripts.
+- When a group shares an API configuration, generation prefers the group channel and key, falling back to personal settings otherwise.
+
+## Groups
+
+- A group leader creates a group with a name and an invite code of at least 8 characters; other users search the group name, submit a request with the code, and join after approval.
+- Group leaders can remove regular members.
+- Members can browse other members' canvases read-only: pan, open previews, download images, view full prompts, and save images to their assets, without editing anything.
+- Group leaders configure shared API channels, keys, and the default model; members use them read-only.
 
 ## Canvas Agent
 
@@ -47,21 +65,18 @@ Canvas plugins can contribute node types, rendering, inspectors, serialization, 
 
 ## Prompts and assets
 
-- Use seven built-in prompt sources from the [Image Prompts](https://github.com/yukkcat/image-prompts) registry, with independent enablement, manual refresh, and scheduled refresh.
-- Add, edit, and remove custom standard JSON sources while retaining the last successful cache when refresh fails.
-- Search across enabled sources, filter by tags, inspect prompt details, copy prompts, and insert them into the canvas.
-- Store reusable images, videos, and prompt assets in the browser.
-
-See [Third-party Prompt Sources](/docs/overview/third-party-prompt-repositories) for the complete built-in list.
+- Prompt data lives in the Supabase `public.prompts` table; signed-in users browse it and administrators manage it in-app.
+- Search by title, filter by category and tag, inspect prompt details with covers, copy prompts, add them to assets, and insert them into the canvas.
+- Administrators can create, edit, and delete prompts, manage categories and tags, and upload cropped covers (stored in the `prompt-covers` bucket).
+- Store reusable images, videos, and prompt assets; asset data syncs with the signed-in account.
 
 ## Configuration and synchronization
 
-- Export and import channel, model, generation, prompt-source, and WebDAV settings.
-- Store application data and API credentials locally in the browser.
-- Use WebDAV for optional cross-device synchronization.
+- Export and import channel, model, generation, and WebDAV settings.
+- Manage channels, preferences, groups, user review, local storage, the local proxy, and WebDAV from a dedicated config page.
+- Third-party prompts, WebDAV, and AI endpoints are all requested directly by the browser, with the local proxy as an optional relay.
 
 ## Current limitations
 
-- The project is frontend-first and does not provide built-in cloud accounts or cloud storage.
-- API keys remain in browser storage and requests are sent directly to configured providers.
-- Production Docker static-resource paths still require broader deployment verification.
+- The canvas is designed for desktop use; touch support on mobile devices is still incomplete.
+- AI requests go directly from the browser to user-configured endpoints; self-hosted deployments should restrict access to trusted users only.

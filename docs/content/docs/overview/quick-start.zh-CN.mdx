@@ -5,44 +5,61 @@ description: 用最少步骤把无限画布跑起来
 
 # 快速开始
 
-如果你只是想先把项目跑起来，优先部署或启动 `web/` 前端。
+如果你只是想先把项目跑起来，优先部署或启动 `web/` 前端。项目使用 Supabase 提供账号认证、画布与素材云存储和 API Key 加密存储，因此**必须先准备一个 Supabase 项目**。
+
+## 准备 Supabase
+
+1. 在 [Supabase](https://supabase.com) 创建项目，记下 Project URL 和 anon key（publishable key，不要使用 service_role key）。
+2. 应用 `supabase/migrations/` 下的全部迁移（可用 Supabase CLI `supabase db push`，或在控制台 SQL Editor 中按文件名顺序执行）。
+3. 部署 `supabase/functions/channel-secrets` Edge Function，并在其 secrets 中配置 `CHANNEL_SECRET_KEY`（用于加密保存渠道 API Key）。
 
 ## Vercel 部署
 
-在 Vercel 中导入仓库即可，根目录 `vercel.json` 会构建 `web/`。当前版本的 AI 请求由浏览器前台直连用户自己的 OpenAI 兼容地址，不需要额外配置服务端。
+在 Vercel 中导入仓库即可，根目录 `vercel.json` 会构建 `web/`。部署前需在 Vercel 环境变量中设置：
+
+```text
+VITE_SUPABASE_URL=<你的 Supabase Project URL>
+VITE_SUPABASE_ANON_KEY=<你的 Supabase anon key>
+```
 
 ## 本地启动
 
 ```bash
 git clone git@github.com:basketikun/infinite-canvas.git
-cd infinite-canvas
-cd web
+cd infinite-canvas/web
 bun install
 bun run dev
 ```
 
-启动后访问：
+本地开发需在 `web/` 下创建 `.env.local`（参考 `web/.env.example`）：
 
 ```text
-http://localhost:3000
+VITE_SUPABASE_URL=<你的 Supabase Project URL>
+VITE_SUPABASE_ANON_KEY=<你的 Supabase anon key>
 ```
+
+启动后访问 `http://localhost:3000`。
 
 ## Docker 启动
 
-如果你需要基于当前源码构建镜像：
-
 ```bash
 docker build -t infinite-canvas .
-docker run --rm -p 3000:3000 infinite-canvas
+docker run --rm -p 3000:3000 \
+  -e SUPABASE_URL=<你的 Supabase Project URL> \
+  -e SUPABASE_ANON_KEY=<你的 Supabase anon key> \
+  infinite-canvas
 ```
+
+也可以使用仓库根目录的 `docker compose up`（需在部署环境中设置 `SUPABASE_URL` 和 `SUPABASE_ANON_KEY`）。
 
 ## 首次使用建议
 
-- 先打开右上角配置弹窗，填入自己的 `Base URL`、`API Key` 和模型名。
-- 如果需要提示词仓库内容，打开 `/prompts` 会由浏览器前端直连拉取并缓存到 IndexedDB。
-- 如果需要跨设备同步画布、素材和生成记录，可在配置弹窗中填写 WebDAV。
+- 第一个注册的账号需要在 Supabase 中手动标记为管理员（`profiles` 表 `is_admin`），之后在配置页「用户审核」中批准其他注册用户。
+- 登录后打开配置页，添加自己的渠道（`Base URL`、`API Key` 和模型名）。API Key 由服务端加密保存，浏览器不保留明文。
+- 提示词库读取 Supabase 公共表，管理员可在提示词库页直接新增和管理提示词。
+- 如需额外的跨设备导出同步，可在配置页中填写 WebDAV。
 
 ## 说明
 
-- 当前画布项目和“我的素材”主要保存在浏览器本地，WebDAV 同步需要用户自行配置。
-- AI API Key 保存在浏览器本地，并由前端直接请求 OpenAI 兼容接口。
+- AI 请求由浏览器直连用户配置的接口；被 CORS 拦截时可开启配置页中的本地转发代理。
+- 画布项目和素材随登录账号同步到 Supabase，导出 JSON 和 WebDAV 同步仍是可选的额外渠道。

@@ -5,11 +5,22 @@ description: Run Infinite Canvas in a few steps
 
 # Quick Start
 
-To try the project, deploy or start the `web/` frontend.
+To try the project, deploy or start the `web/` frontend. The project uses Supabase for accounts, canvas and asset storage, and encrypted API key storage, so **you must prepare a Supabase project first**.
+
+## Prepare Supabase
+
+1. Create a project on [Supabase](https://supabase.com) and note the Project URL and the anon key (publishable key; never use the service_role key).
+2. Apply all migrations under `supabase/migrations/` (via the Supabase CLI `supabase db push`, or run each file in order in the SQL editor).
+3. Deploy the `supabase/functions/channel-secrets` Edge Function and set `CHANNEL_SECRET_KEY` in its secrets (used to encrypt provider API keys).
 
 ## Deploy with Vercel
 
-Import the repository into Vercel. The root `vercel.json` builds `web/`. AI requests are sent directly from the browser to your OpenAI-compatible endpoint, so no additional application server is required.
+Import the repository into Vercel. The root `vercel.json` builds `web/`. Set the following environment variables in Vercel before deploying:
+
+```text
+VITE_SUPABASE_URL=<your Supabase Project URL>
+VITE_SUPABASE_ANON_KEY=<your Supabase anon key>
+```
 
 ## Run locally
 
@@ -20,19 +31,35 @@ bun install
 bun run dev
 ```
 
+For local development, create `web/.env.local` (see `web/.env.example`):
+
+```text
+VITE_SUPABASE_URL=<your Supabase Project URL>
+VITE_SUPABASE_ANON_KEY=<your Supabase anon key>
+```
+
 Open `http://localhost:3000`.
 
 ## Run with Docker
 
 ```bash
 docker build -t infinite-canvas .
-docker run --rm -p 3000:3000 infinite-canvas
+docker run --rm -p 3000:3000 \
+  -e SUPABASE_URL=<your Supabase Project URL> \
+  -e SUPABASE_ANON_KEY=<your Supabase anon key> \
+  infinite-canvas
 ```
+
+Alternatively run `docker compose up` from the repository root (set `SUPABASE_URL` and `SUPABASE_ANON_KEY` in the deployment environment).
 
 ## First-time setup
 
-- Open Settings and enter your `Base URL`, `API Key`, and model names.
-- Open `/prompts` to fetch prompt repositories directly from the browser and cache them in IndexedDB.
-- Configure WebDAV if you want to synchronize canvases, assets, and generation history across devices.
+- The first registered account must be marked as an administrator manually (the `is_admin` field in `profiles`); other sign-ups are then approved in the config page under user review.
+- After signing in, open the config page and add your provider (`Base URL`, `API Key`, and model names). API keys are stored encrypted server-side; the browser never keeps the plaintext.
+- The prompt library reads from a Supabase table; administrators can add and manage prompts directly in the prompt library page.
+- For extra cross-device export, configure WebDAV in the config page.
 
-Canvas projects and My Assets are primarily stored in the browser. The API key is also stored locally and used by the browser to call OpenAI-compatible endpoints directly.
+## Notes
+
+- AI requests are sent directly from the browser to your configured endpoints; if CORS blocks them, enable the local forwarding proxy in the config page.
+- Canvas projects and assets sync to Supabase with the signed-in account; JSON export and WebDAV remain optional extra channels.
